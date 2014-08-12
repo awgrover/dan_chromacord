@@ -1,104 +1,64 @@
-// #include <hsv2rgb.h>
-// #include <pixeltypes.h>
 #include <Wire.h>
 #include <TLC59116.h>
 #include <MsTimer2.h>
+#include "slopifier.h"
 
-#define start_sequence { \
-  static byte sequence_i = 0; \
-  static unsigned long sequence_next = 0; \
-  if (millis() >= sequence_next) { \
-    /* Serial.print(F("Sequence "));Serial.println(sequence_i); */ \
-    switch (sequence_i) { \
-      case -1 : /* dumy */
-#define sequence(sofar, fn, delay_millis) break; \
-      case sofar : sequence_i++; sequence_next = millis() + delay_millis; fn;
-#define end_sequence \
-      default: sequence_i=0; /* wrap i */ \
-      } \
-    /* Serial.print(F("Next seq "); Serial.print(sequence_i); Serial.print(F(" in "));Serial.println(sequence_next - millis()); */ \
-    } \
-  }
-#define end_do_sequence end_sequence }
 
-TLC59116 tlc_first;
-TLC59116* tlc[14]; // null'd
+const int Test_Pot_Pin = 0;
+TLC59116Manager tlcmanager; // defaults
+
+extern int __bss_end;
+extern void *__brkval;
+
+int get_free_memory() {
+  int free_memory;
+
+  if((int)__brkval == 0)
+    free_memory = ((int)&free_memory) - ((int)&__bss_end);
+  else
+    free_memory = ((int)&free_memory) - ((int)__brkval);
+
+  return free_memory;
+}
 
 void setup() {
-  TLC59116::DEBUG=1;   // change to 0 to skip warnings/etc.
-  // (open the serial monitor window).
   Serial.begin(115200);
-  Wire.begin();
-  TLC59116::reset();
-  tlc_first.enable_outputs();
-
-  TLC59116::Scan scanner = TLC59116::scan();
-  byte tlc_count = 0;
-  for (byte i=0; i<scanner.count(); i++) {
-    byte candidate = scanner.device_addresses()[i];
-    if (TLC59116::is_single_device_addr(candidate)) {
-      tlc[i] = new TLC59116(candidate );
-      tlc_count++;
-      }
-    }
-  Serial.print("Made tlc[0..");Serial.print(tlc_count-1);Serial.print("] out of "); Serial.println(scanner.count());
+  Serial.println("Top of setup");
+  Serial.print(F("Free memory "));Serial.println(get_free_memory());
+  tlcmanager.init();
+  Serial.print(F("Free memory after init "));Serial.println(get_free_memory());
   }
 
+TLC59116 *g_tlc; // only for the isr routine
+
 void loop() {
+  static TLC59116 *tlc;
   static char test_num = '0'; // idle pattern
+  if (!tlc) tlc = &(tlcmanager[0]);
+
   switch (test_num) {
 
-    case 0xff: // prompt
-      Serial.print("Choose (? for help): ");
-      test_num = NULL;
-      break;
-
-    case NULL: // means "done with last, do nothing"
-      break; // do it
-
-
-    case '0': // 1st 3 rgb on/off/hsv sanity
-      prove_on();
-      break;
-
-    case 'o': // on
-      tlc_first.on(0).on(1).on(2);
-      while (Serial.available() <= 0) {}
-      test_num = 0xff;
+    case '0': // idle/sanity
+      prove_on(*tlc);
       break;
 
     case 'r': // Reset
-      tlc_first.reset();
-      tlc_first.reset_shadow_registers();
-      tlc_first.enable_outputs(); // before reset_shadow!
+      tlcmanager.reset();
       test_num = 0xff;
       break;
 
-    case 's': // Spiral through HSB color Space
-      tlc_first.reset();
-      tlc_first.reset_shadow_registers();
-      tlc_first.enable_outputs(); // before reset_shadow!
-      spiral();
-      test_num = 0xff;
-      break;
-      
-    case 'p' : // Pwm full range
-      pwm_full_range();
-      test_num = 0xff;
-      break;
-
-    case 'z' : // huh
-      while(Serial.available() <= 0) {
-        }
-      test_num = 0xff;
+    case 'P': // Get max/min of POT on A0 till 'x'
+      max_min_pot(Test_Pot_Pin);
+      test_num = '?';
       break;
 
     case 'g' : // Go into performance mode
-      performance();
+      // performance();
       test_num = 0xfe;
       break;
 
     case 't' : // Timer test: make something blink every n
+      g_tlc = tlc;
       MsTimer2::set(200, on_off_isr);
       MsTimer2::start();
       while(Serial.available() <= 0) {
@@ -108,44 +68,87 @@ void loop() {
       test_num = 0xfe;
       break;
       
-    default:
+    case '?' :
       Serial.println();
-      // menu made by: make 
-      // include *.ino.menu
-Serial.println(F("0  1st 3 rgb on/off/hsv sanity"));
-Serial.println(F("o  on"));
+      // menu made by: make (in examples/, then insert here)
+Serial.println(F("0  idle/sanity"));
 Serial.println(F("r  Reset"));
-Serial.println(F("s  Spiral through HSB color Space"));
-Serial.println(F("p  Pwm full range"));
-Serial.println(F("z  huh"));
+Serial.println(F("P  Get max/min of POT on A0 till 'x'"));
 Serial.println(F("g  Go into performance mode"));
-      // end-menu
+Serial.println(F("t  Timer test: make something blink every n"));
+      // end menu
+      // fallthrough
 
-      Serial.println(F("? Prompt again"));
-      test_num = 0xFF; // prompt
+    case 0xff : // show prompt, get input
+      Serial.print(F("Choose (? for help): "));
+      while(Serial.available() <= 0) {}
+      test_num = Serial.read();
+      Serial.println(test_num);
+      break;
+
+    default :
+      test_num = '?';
+      break;
+
     }
-
-  // Change test_num?
-  if (Serial.available() > 0) {
-    test_num = Serial.read();
-    Serial.println(test_num);
-    }
-
+  if (Serial.available() > 0) test_num = Serial.read();
   }
 
-void prove_on() {
+void max_min_pot(int analog_pin) {
+  Slopifier history;
+  byte measure_ct = 5;
+  int max_measure[measure_ct];
+  int min_measure[measure_ct];
+  int i_max, i_min;
+
+  while (Serial.available() <= 0) {
+    int val = analogRead(analog_pin);
+    history << val;
+    if (!history.primed) continue;
+
+    Slopifier::Direction reversal = history.has_reversed();
+    switch (reversal) {
+      case Slopifier::Up:
+        max_measure[(i_max++) % measure_ct] = history.maxv;
+        break;
+      case Slopifier::Down:
+        min_measure[(i_min++) % measure_ct] = history.minv;
+        break;
+      case Slopifier::Flat:
+        Serial.print("Min ");
+        for(byte i=0; i<measure_ct; i++) { Serial.print(min_measure[i]); Serial.print(" "); }
+        Serial.println();
+        Serial.print("Max ");
+        for(byte i=0; i<measure_ct; i++) { Serial.print(max_measure[i]); Serial.print(" "); }
+        Serial.println();
+      }
+    }
+  }
+
+
+void prove_on(TLC59116& tlc) {
   Serial.println("TOP");
-  tlc_first
+  tlc
   // .pwm(0, 3, (byte[]) {255,255,255}).delay(500)
   .on(0).on(1).on(2)
   .delay(500);
   Serial.println("off...");
-  tlc_first.off(0).off(1).off(2)
+  tlc.off(0).off(1).off(2)
   .delay(500);
-  tlc_first.pwm(0, 3, (byte[]){50, 128, 128})
+  tlc.pwm(0, 3, (byte[]){50, 128, 128})
   .delay(500);
   }
 
+void on_off_isr() {
+  static bool oo = 0;
+  sei();
+  g_tlc->set(1, oo);
+  g_tlc->set(2, oo);
+  oo = !oo;
+  }
+
+const byte Slider_ct = 3;
+/*
 void spiral() {
   const byte max_group_led = (2 * 3);
   const unsigned long on_time = 2;
@@ -218,15 +221,6 @@ void pwm_full_range() {
     }
   }
 
-void on_off_isr() {
-  static bool oo = 0;
-  sei();
-  tlc_first.on(1, oo);
-  tlc_first.on(2, oo);
-  oo = !oo;
-  }
-
-const byte Slider_ct = 3;
 const int Slider_Pins[] = { 0,1,2,3,4,5,6,7,  8.9,10,11,12,13,14,15 };
 const byte Zones = 1;
 const byte Sample_Time = 100; // microsec
@@ -321,3 +315,4 @@ inline void accumulatepwm_rgb_groups(byte slider_i) {
     }
   Serial.println();
   }
+*/
