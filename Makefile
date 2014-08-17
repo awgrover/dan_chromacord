@@ -23,3 +23,8 @@ ide : log
 log :  
 	mkdir -p log
 
+# link in the external lib (which isn't when developing)
+.PHONY : extlib
+extlib : lib_dir_link 
+	ln -s `realpath ../tlc59116_lib` `realpath lib_dir_link`/tlc59116
+	
