@@ -2,6 +2,9 @@
 #include <TLC59116.h>
 #include <MsTimer2.h>
 #include "slopifier.h"
+#include "zone_patches.h"
+#include "patches.h"
+#include "sliders.h"
 
 
 const int Test_Pot_Pin = 0;
@@ -33,7 +36,7 @@ TLC59116 *g_tlc; // only for the isr routine
 
 void loop() {
   static TLC59116 *tlc;
-  static char test_num = '0'; // idle pattern
+  static char test_num = 'P'; // idle pattern
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
@@ -47,10 +50,16 @@ void loop() {
       test_num = 0xff;
       break;
 
-    case 'P': // Get max/min of POT on A0 till 'x'
+    case 'P': // get max/min of POT on A0 till 'x'
       max_min_pot(Test_Pot_Pin);
       test_num = '?';
       break;
+
+    case 'p': // track Pot
+      while (Serial.available() <= 0) {
+        int val = analogRead(Test_Pot_Pin);
+        Serial.println(val);
+        }
 
     case 'g' : // Go into performance mode
       // performance();
@@ -99,12 +108,17 @@ void max_min_pot(int analog_pin) {
   byte measure_ct = 5;
   int max_measure[measure_ct];
   int min_measure[measure_ct];
-  int i_max, i_min;
+  int i_max=0;
+  int i_min=0;
+  for(byte i=0;i<measure_ct;i++) { max_measure[i]=0; min_measure[i]=0; }
 
   while (Serial.available() <= 0) {
+    delay(50);
     int val = analogRead(analog_pin);
     history << val;
     if (!history.primed) continue;
+
+    if (history.read_reversed) continue;
 
     Slopifier::Direction reversal = history.has_reversed();
     switch (reversal) {
@@ -114,15 +128,22 @@ void max_min_pot(int analog_pin) {
       case Slopifier::Down:
         min_measure[(i_min++) % measure_ct] = history.minv;
         break;
-      case Slopifier::Flat:
+      case Slopifier::None:
         Serial.print("Min ");
         for(byte i=0; i<measure_ct; i++) { Serial.print(min_measure[i]); Serial.print(" "); }
         Serial.println();
         Serial.print("Max ");
         for(byte i=0; i<measure_ct; i++) { Serial.print(max_measure[i]); Serial.print(" "); }
         Serial.println();
+        break;
       }
     }
+    Serial.print("Min ");
+    for(byte i=0; i<measure_ct; i++) { Serial.print(min_measure[i]); Serial.print(" "); }
+    Serial.println();
+    Serial.print("Max ");
+    for(byte i=0; i<measure_ct; i++) { Serial.print(max_measure[i]); Serial.print(" "); }
+    Serial.println();
   }
 
 
