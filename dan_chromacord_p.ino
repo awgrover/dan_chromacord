@@ -7,8 +7,11 @@
 #include "sliders.h"
 #include "tired_of_serial.h"
 
+const byte Pixel_Count = 5*3;
+const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
 const int Test_Pot_Pin = 0;
 TLC59116Manager tlcmanager; // defaults
+
 
 extern int __bss_end;
 extern void *__brkval;
@@ -45,9 +48,9 @@ void setup() {
       }
     }
   print(F("Max pixel "));print(pixel);Serial.println();
-  if (pixel > tlcmanager.device_count() * (15/3)) { // 15 channels /3 = pixels
+  if (pixel > tlcmanager.device_count() * Pixels_Per_Dandelion) {
     print(F("ERROR, "));print(tlcmanager.device_count());print(F(" dandelions, which is "));
-    print(tlcmanager.device_count() * (15/3));print(F(" rgb pixels, but the patches have a rgb pixel # "));
+    print(tlcmanager.device_count() * Pixels_Per_Dandelion);print(F(" rgb pixels, but the patches have a rgb pixel # "));
     print(pixel);
     Serial.println();
     }
@@ -58,6 +61,7 @@ TLC59116 *g_tlc; // only for the isr routine
 void loop() {
   static TLC59116 *tlc;
   static char test_num = '0'; // idle pattern
+  static byte current_patch_i = 0;
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
@@ -102,7 +106,7 @@ void loop() {
       break;
       
     case 'g' : // Go into performance mode
-      // performance();
+      performance(patches[current_patch_i]);
       test_num = 0xff;
       break;
 
@@ -203,13 +207,44 @@ void track_print_pots() {
   while (Serial.available() <= 0) {
     for (byte i = 0; i<RGBPot::pot_list_count; i++) {
       const RGBPot &this_pot = RGBPot::pot_list[i];
-      print(this_pot.value);print(" ");
+      for (byte rgb_i=0; rgb_i < 3; rgb_i++) {
+        print(this_pot.rgb[rgb_i]);print(" ");
+        }
+      print(F(" | "));
       }
     Serial.println();
     delay(200);
 
     }
   RGBPot::stop_reading();
+  }
+
+
+void performance(const byte** patch) {
+  // Do each dandelion so we only have to "buffer" 15 values at a time
+  for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
+    // Collect rgb values for this dandelion
+
+    TLC59116& dandelion = tlcmanager[dandelion_i];
+    byte pwm_by_rgb[Pixels_Per_Dandelion][3] = {}; // rgb sets
+    print(F("Dandelion ")); print(dandelion.address());Serial.println();
+
+    for (const byte* zone=*patch; zone < *patch + Zone_Count; zone++) {
+      for (const byte zone_i=0; zone_i < Zone_Count; zone++) {
+        print(F("  check zone "));print(zone_i);Serial.println();
+        for (const byte *pix=patch[zone_i]; *pix != -1; pix++) {
+          byte dandelion_for_pixel = *pix / Pixels_Per_Dandelion;
+          if (dandelion_for_pixel == dandelion_i) {
+            byte rgb_i = *pix % Pixels_Per_Dandelion;
+            byte channel = rgb_i * 3; // pixel #2 is at 2*3=channel 6,7,8
+            print(*pix); print(F("->")); print(channel);Serial.println();
+            memcpy(&pwm_by_rgb[channel], &sliders[zone_i].rgb, 3);
+            }
+          }
+        }
+      }
+    dandelion.pwm(*pwm_by_rgb);
+    }
   }
 
 /*
@@ -319,32 +354,6 @@ void grab_next_slider() {
     }
   }
 
-void performance() {
-  const int break_check_interval = 500;
-
-  // setup interrupt routine to read sliders
-  MsTimer2::set(Sample_Interval, grab_next_slider);
-  MsTimer2::start();
-
-  // update dandelion, till serial.avail
-  unsigned long break_check = millis() + break_check_interval; // every 1/2
-  while(1) {
-
-    for(byte slider_i =0; slider_i < Slider_ct; slider_i++) {
-      // e.g. slider1 => red of zone[1] of rgbs of dandelions
-      Serial.print("Slider ");Serial.print(slider_i);Serial.print(" ");Serial.println(Targets[slider_i]);
-      accumulatepwm_rgb_groups( slider_i );
-      }
-    set_pwm(leds);
-
-    if (millis() > break_check) {
-      if (Serial.available() > 0) { break; }
-      }
-    }
-
-  // cleanup interrupt
-  MsTimer2::stop();
-  }
 
 void set_pwm(byte* leds) {
   // any assumption of led->actual? 16 per, continous

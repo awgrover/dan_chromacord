@@ -5,7 +5,7 @@ class RGBPot {
     const byte pin;
     const int vmin;
     const int vmax;
-    byte value; // scaled 0..255
+    byte rgb[3]; // scaled 0..255
 
     RGBPot(byte read_pin, int analog_min, int analog_max) : pin(read_pin), vmin(analog_min), vmax(analog_max) {}
 
@@ -29,7 +29,9 @@ class RGBPot {
     static void read_pots() {
       for (byte i = 0; i<pot_list_count; i++) {
         RGBPot &this_pot = (RGBPot&)(pot_list[i]);
-        this_pot.value = map(analogRead(this_pot.pin), this_pot.vmin, this_pot.vmax, 0,255);
+        for(byte rgb_i=0; rgb_i < 3; rgb_i++) {
+          this_pot.rgb[i] = map(analogRead(this_pot.pin + rgb_i), this_pot.vmin, this_pot.vmax, 0,255);
+          }
         }
       }
 
