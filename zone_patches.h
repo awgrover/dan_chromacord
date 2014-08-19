@@ -1,15 +1,14 @@
 class ZonePixels {
   public:
     const int pixel_ct;
-    byte* pixels; // each pixel is a rgb
+    const byte* pixels; // each pixel is a rgb
 
-    template <int N> ZonePixels(byte _pixels[N]) : pixel_ct(N), pixels(_pixels) {};
-    ZonePixels(void *x) : pixel_ct(0), pixels(NULL) {};
+    template <size_t N> ZonePixels(const byte (&_pixels)[N]) : pixel_ct(N), pixels(_pixels) {};
+    ZonePixels() : pixel_ct(0), pixels(NULL) {}
   private:
-    ZonePixels();
-    // ZonePixels(const ZonePixels&);
     ZonePixels& operator=(const ZonePixels&);
   };
+  
 
 
 #include <MsTimer2.h>
@@ -25,12 +24,12 @@ class RGBPot {
 
   // Class
     static unsigned long Sample_Interval; // milli-sec
-    static RGBPot* pot_list;
+    static const RGBPot* pot_list;
     static byte pot_list_count;
 
-    template <int N> static void start_reading(RGBPot pot_list[N]) {
-      RGBPot::pot_list_count = N;
-      RGBPot::pot_list = pot_list;
+    template <int N> static void start_reading(const RGBPot (&_pot_list)[N]) {
+      pot_list_count = N;
+      pot_list = _pot_list;
 
       MsTimer2::set(Sample_Interval, RGBPot::read_pots);
       MsTimer2::start();
@@ -42,7 +41,7 @@ class RGBPot {
   private:
     static void read_pots() {
       for (byte i = 0; i<pot_list_count; i++) {
-        RGBPot &this_pot = pot_list[i];
+        RGBPot &this_pot = (RGBPot&)(pot_list[i]);
         this_pot.value = map(analogRead(this_pot.pin), this_pot.vmin, this_pot.vmax, 0,255);
         }
       }

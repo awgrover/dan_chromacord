@@ -5,7 +5,7 @@
 #include "zone_patches.h"
 #include "patches.h"
 #include "sliders.h"
-
+#include "tired_of_serial.h"
 
 const int Test_Pot_Pin = 0;
 TLC59116Manager tlcmanager; // defaults
@@ -30,19 +30,41 @@ void setup() {
   Serial.print(F("Free memory "));Serial.println(get_free_memory());
   tlcmanager.init();
   Serial.print(F("Free memory after init "));Serial.println(get_free_memory());
+  
+  // check for pixels vs dandelion count
+  byte pixel = 0;
+  for (const ZonePixels** p=patches; p < patches + Patch_Count; p++) {
+    print(F("Check patch "));print(p-patches);print(F("/"));print(Patch_Count);Serial.println();
+    for (const ZonePixels* z=*p; z < *p + Zone_Count; z++) {
+      print(F("  check zone "));print(z-*p);print(F(" for "));print(z->pixel_ct);Serial.println();
+      for (const byte *pix=z->pixels; pix < z->pixels + z->pixel_ct; pix++) {
+        print(F("    check pixel "));print(*pix);Serial.println();
+        pixel = max(pixel, *pix);
+        }
+      print(F("  max "));print(pixel);Serial.println();
+      }
+    }
+  print(F("Max pixel "));print(pixel);Serial.println();
+  if (pixel > tlcmanager.device_count() * (15/3)) { // 15 channels /3 = pixels
+    print(F("ERROR, "));print(tlcmanager.device_count());print(F(" dandelions, which is "));
+    print(tlcmanager.device_count() * (15/3));print(F(" rgb pixels, but the patches have a rgb pixel # "));
+    print(pixel);
+    Serial.println();
+    }
   }
 
 TLC59116 *g_tlc; // only for the isr routine
 
 void loop() {
   static TLC59116 *tlc;
-  static char test_num = 'P'; // idle pattern
+  static char test_num = '0'; // idle pattern
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
 
     case '0': // idle/sanity
       prove_on(*tlc);
+      test_num = 0xff;
       break;
 
     case 'r': // Reset
@@ -50,20 +72,22 @@ void loop() {
       test_num = 0xff;
       break;
 
-    case 'P': // get max/min of POT on A0 till 'x'
+    case 'C': // get max/min of POT on A0 till 'x' (callibration)
       max_min_pot(Test_Pot_Pin);
       test_num = '?';
       break;
 
-    case 'p': // track Pot
+    case 'p': // Track Pot
       while (Serial.available() <= 0) {
         int val = analogRead(Test_Pot_Pin);
         Serial.println(val);
         }
-
-    case 'g' : // Go into performance mode
-      // performance();
-      test_num = 0xfe;
+      test_num = 0xff;
+      break;
+    
+    case 'P' : // Track pots with timer & stuff
+      track_print_pots();
+      test_num = 0xff;
       break;
 
     case 't' : // Timer test: make something blink every n
@@ -74,15 +98,22 @@ void loop() {
         Serial.println(analogRead(3));
         }
       MsTimer2::stop();
-      test_num = 0xfe;
+      test_num = 0xff;
       break;
       
+    case 'g' : // Go into performance mode
+      // performance();
+      test_num = 0xff;
+      break;
+
     case '?' :
       Serial.println();
       // menu made by: make (in examples/, then insert here)
 Serial.println(F("0  idle/sanity"));
 Serial.println(F("r  Reset"));
-Serial.println(F("P  Get max/min of POT on A0 till 'x'"));
+Serial.println(F("C  get max/min of POT on A0 till 'x' (callibration)"));
+Serial.println(F("p  Track Pot"));
+Serial.println(F("P  Track pots with timer & stuff"));
 Serial.println(F("g  Go into performance mode"));
 Serial.println(F("t  Timer test: make something blink every n"));
       // end menu
@@ -100,7 +131,6 @@ Serial.println(F("t  Timer test: make something blink every n"));
       break;
 
     }
-  if (Serial.available() > 0) test_num = Serial.read();
   }
 
 void max_min_pot(int analog_pin) {
@@ -168,8 +198,22 @@ void on_off_isr() {
   oo = !oo;
   }
 
-const byte Slider_ct = 3;
+void track_print_pots() {
+  RGBPot::start_reading(sliders);
+  while (Serial.available() <= 0) {
+    for (byte i = 0; i<RGBPot::pot_list_count; i++) {
+      const RGBPot &this_pot = RGBPot::pot_list[i];
+      print(this_pot.value);print(" ");
+      }
+    Serial.println();
+    delay(200);
+
+    }
+  RGBPot::stop_reading();
+  }
+
 /*
+const byte Slider_ct = 3;
 void spiral() {
   const byte max_group_led = (2 * 3);
   const unsigned long on_time = 2;
