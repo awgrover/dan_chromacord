@@ -1,16 +1,3 @@
-class ZonePixels {
-  public:
-    const int pixel_ct;
-    const byte* pixels; // each pixel is a rgb
-
-    template <size_t N> ZonePixels(const byte (&_pixels)[N]) : pixel_ct(N), pixels(_pixels) {};
-    ZonePixels() : pixel_ct(0), pixels(NULL) {}
-  private:
-    ZonePixels& operator=(const ZonePixels&);
-  };
-  
-
-
 #include <MsTimer2.h>
 
 class RGBPot {

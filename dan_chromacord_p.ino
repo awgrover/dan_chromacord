@@ -33,11 +33,11 @@ void setup() {
   
   // check for pixels vs dandelion count
   byte pixel = 0;
-  for (const ZonePixels** p=patches; p < patches + Patch_Count; p++) {
+  for (const byte*** p=patches; p < patches + Patch_Count; p++) {
     print(F("Check patch "));print(p-patches);print(F("/"));print(Patch_Count);Serial.println();
-    for (const ZonePixels* z=*p; z < *p + Zone_Count; z++) {
-      print(F("  check zone "));print(z-*p);print(F(" for "));print(z->pixel_ct);Serial.println();
-      for (const byte *pix=z->pixels; pix < z->pixels + z->pixel_ct; pix++) {
+    for (const byte** zone=*p; zone < *p + Zone_Count; zone++) {
+      print(F("  check zone "));print(zone-*p);Serial.println();
+      for (const byte *pix=*zone; *pix != -1; pix++) {
         print(F("    check pixel "));print(*pix);Serial.println();
         pixel = max(pixel, *pix);
         }
