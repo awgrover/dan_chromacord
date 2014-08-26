@@ -1,4 +1,5 @@
 #include <Wire.h>
+#define TLC59116_WARNINGS 1
 #include <TLC59116.h>
 #include <MsTimer2.h>
 #include "slopifier.h"
@@ -32,6 +33,8 @@ void setup() {
   Serial.println("Top of setup");
   Serial.print(F("Free memory "));Serial.println(get_free_memory());
   tlcmanager.init();
+  // tlcmanager[0].set_milliamps(10);
+  Serial.print(F("Set [0] to "));Serial.print(tlcmanager[0].milliamps());Serial.println(F("ma"));
   Serial.print(F("Free memory after init "));Serial.println(get_free_memory());
   
   // check for pixels vs dandelion count
@@ -40,12 +43,12 @@ void setup() {
     print(F("Check patch "));print(p-patches);print(F("/"));print(Patch_Count);Serial.println();
     for (const byte** zone=*p; zone < *p + Zone_Count; zone++) {
       print(F("  check zone "));print(zone-*p);Serial.println();
-      for (const byte *pix=*zone; *pix != -1; pix++) {
-        print(F("    check pixel "));print(*pix);Serial.println();
+      for (const byte *pix=*zone; *pix != 0xFF; pix++) {
+        // print(F("    check pixel "));print(*pix);Serial.println();
         pixel = max(pixel, *pix);
         }
-      print(F("  max "));print(pixel);Serial.println();
       }
+    print(F("  max "));print(pixel);Serial.println();
     }
   print(F("Max pixel "));print(pixel);Serial.println();
   if (pixel > tlcmanager.device_count() * Pixels_Per_Dandelion) {
@@ -59,8 +62,8 @@ void setup() {
 TLC59116 *g_tlc; // only for the isr routine
 
 void loop() {
-  static TLC59116 *tlc;
-  static char test_num = '0'; // idle pattern
+  static TLC59116 *tlc = NULL;
+  static char test_num = 'd'; // idle pattern
   static byte current_patch_i = 0;
   if (!tlc) tlc = &(tlcmanager[0]);
 
@@ -71,8 +74,15 @@ void loop() {
       test_num = 0xff;
       break;
 
+    case 'd': // Describe actual registers
+      Serial.println();
+      tlc->describe_actual();
+      test_num = 0xff;
+      break;
+
     case 'r': // Reset
       tlcmanager.reset();
+      tlcmanager[0].set_milliamps(20);
       test_num = 0xff;
       break;
 
@@ -105,7 +115,14 @@ void loop() {
       test_num = 0xff;
       break;
       
+    case 's' : // Show patch
+      Serial.print(F("Patch "));Serial.println(current_patch_i);
+      show_patch(patches[current_patch_i]);
+      test_num = 0xff;
+      break;
+
     case 'g' : // Go into performance mode
+      Serial.print(F("Patch "));Serial.println(current_patch_i);
       performance(patches[current_patch_i]);
       test_num = 0xff;
       break;
@@ -220,7 +237,7 @@ void track_print_pots() {
   }
 
 
-void performance(const byte** patch) {
+void update_by_dandelion(const byte *zone_rgb[3] /* [Zone_Count][3] */, const byte **patch) {
   // Do each dandelion so we only have to "buffer" 15 values at a time
   for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
@@ -229,6 +246,7 @@ void performance(const byte** patch) {
     byte pwm_by_rgb[Pixels_Per_Dandelion][3] = {}; // rgb sets
     print(F("Dandelion ")); print(dandelion.address());Serial.println();
 
+    // FIXME: we should construct a reverse table: zone_i -> [dandelion/channels,...]
     for (const byte* zone=*patch; zone < *patch + Zone_Count; zone++) {
       for (const byte zone_i=0; zone_i < Zone_Count; zone++) {
         print(F("  check zone "));print(zone_i);Serial.println();
@@ -238,13 +256,47 @@ void performance(const byte** patch) {
             byte rgb_i = *pix % Pixels_Per_Dandelion;
             byte channel = rgb_i * 3; // pixel #2 is at 2*3=channel 6,7,8
             print(*pix); print(F("->")); print(channel);Serial.println();
-            memcpy(&pwm_by_rgb[channel], &sliders[zone_i].rgb, 3);
+            memcpy(&pwm_by_rgb[channel], (byte* /*[3]*/) zone_rgb[zone_i], 3);
             }
           }
         }
       }
     dandelion.pwm(*pwm_by_rgb);
     }
+  }
+
+void show_patch(const byte** patch) {
+  // indicate patch r,g,b,rgb on 1st/last pixel
+  // tlcmanager[0].on(0);
+  // tlcmanager[tlcmanager.device_count()-1].on(14);
+  byte rgb[Zone_Count][3];
+  byte *rgb_p[Zone_Count];
+  for(byte i = 0; i<Zone_Count; i++) { rgb_p[i] = rgb[i]; }
+  for(byte i =0; i < Zone_Count; i++) {
+    Serial.print(F("Zone "));Serial.println(i);
+    byte rgb_bits = i % 6 + 1; // 1..6, 3bits where 1 or 2 bits are on at a time
+
+    // set this i to interesting value, set others to 0
+    for (byte set_i=0; set_i < Zone_Count; set_i++) {
+      if (set_i==i) {
+        rgb[set_i][0] = (rgb_bits & 0b100) ? 100 : 0;
+        rgb[set_i][1] = (rgb_bits & 0b010) ? 100 : 0;
+        rgb[set_i][2] = (rgb_bits & 0b001) ? 100 : 0;
+        }
+      else {
+        memset(rgb[set_i], 0, 3);
+        }
+      }
+
+    update_by_dandelion((const byte**)rgb_p, patch);
+    delay(1000);
+    }
+    
+  tlcmanager.reset();
+  }
+
+void performance(const byte** patch) {
+  update_by_dandelion((const byte**)sliders, patch);
   }
 
 /*

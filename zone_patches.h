@@ -1,11 +1,12 @@
 #include <MsTimer2.h>
 
-class RGBPot {
+struct RGBPot {
+  byte rgb[3]; // scaled 0..255. can cast to (byte[3]) // Must be first for this cast
+
   public:
     const byte pin;
     const int vmin;
     const int vmax;
-    byte rgb[3]; // scaled 0..255
 
     RGBPot(byte read_pin, int analog_min, int analog_max) : pin(read_pin), vmin(analog_min), vmax(analog_max) {}
 

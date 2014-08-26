@@ -15,9 +15,12 @@ menu : .$(ino).menu
 	awk '/$(menustart)/ {print; system("cat $<")}; /$(menuend)/ {print}; /$(menustart)/,/$(menuend)/ {next}; {print}' $(ino).bak > $(ino)
 	@echo Edited $(ino)
 
+patches.h : *.patch
+	./generate_patches patches.h *.patch
+
 # Launch ide
 .PHONY : ide
-ide : log
+ide : log lib_dir_link/tlc59116
 	arduino `pwd`/*.ino > log/ide.log 2>&1 &
 
 log :  
@@ -25,6 +28,7 @@ log :
 
 # link in the external lib (which isn't when developing)
 .PHONY : extlib
-extlib : lib_dir_link 
+extlib : lib_dir_link/tlc59116
+lib_dir_link/tlc59116 :
 	ln -s `realpath ../tlc59116_lib` `realpath lib_dir_link`/tlc59116
 	
