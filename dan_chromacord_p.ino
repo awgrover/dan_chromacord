@@ -34,7 +34,7 @@ void setup() {
   Serial.print(F("Free memory "));Serial.println(get_free_memory());
   tlcmanager.init();
   // tlcmanager[0].set_milliamps(10);
-  Serial.print(F("Set [0] to "));Serial.print(tlcmanager[0].milliamps());Serial.println(F("ma"));
+  Serial.print(F("[0] is "));Serial.print(tlcmanager[0].milliamps());Serial.println(F("ma max"));
   Serial.print(F("Free memory after init "));Serial.println(get_free_memory());
   
   // check for pixels vs dandelion count
@@ -51,9 +51,9 @@ void setup() {
     print(F("  max "));print(pixel);Serial.println();
     }
   print(F("Max pixel "));print(pixel);Serial.println();
-  if (pixel > tlcmanager.device_count() * Pixels_Per_Dandelion) {
-    print(F("ERROR, "));print(tlcmanager.device_count());print(F(" dandelions, which is "));
-    print(tlcmanager.device_count() * Pixels_Per_Dandelion);print(F(" rgb pixels, but the patches have a rgb pixel # "));
+  if (pixel >= tlcmanager.device_count() * Pixels_Per_Dandelion) {
+    print(F("ERROR, "));print(tlcmanager.device_count());print(F(" dandelions, which is 0.."));
+    print(tlcmanager.device_count() * Pixels_Per_Dandelion - 1 );print(F(" rgb pixels, but the patches have a rgb pixel # "));
     print(pixel);
     Serial.println();
     }
@@ -63,13 +63,13 @@ TLC59116 *g_tlc; // only for the isr routine
 
 void loop() {
   static TLC59116 *tlc = NULL;
-  static char test_num = 'd'; // idle pattern
+  static char test_num = 0xff;
   static byte current_patch_i = 0;
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
 
-    case '0': // idle/sanity
+    case '0': // (zero) show I'm working
       prove_on(*tlc);
       test_num = 0xff;
       break;
@@ -82,7 +82,6 @@ void loop() {
 
     case 'r': // Reset
       tlcmanager.reset();
-      tlcmanager[0].set_milliamps(20);
       test_num = 0xff;
       break;
 
@@ -112,6 +111,7 @@ void loop() {
         Serial.println(analogRead(3));
         }
       MsTimer2::stop();
+      tlcmanager.reset();
       test_num = 0xff;
       break;
       
@@ -150,6 +150,9 @@ Serial.println(F("c  Choose another patch"));
 
     case 0xff : // show prompt, get input
       Serial.print(F("Choose (? for help): "));
+      // fallthrough
+
+    case 0xfe : // just get input
       while(Serial.available() <= 0) {}
       test_num = Serial.read();
       Serial.println(test_num);
