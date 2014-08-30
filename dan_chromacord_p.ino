@@ -255,9 +255,15 @@ void track_print_pots() {
   }
 
 
-void update_by_dandelion(const byte *zone_rgb[3] /* [Zone_Count][3] */, const byte **patch) {
+void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) {
   // Do each dandelion so we only have to "buffer" 15 values at a time
   Serial.println();
+  print(F(" slider@"));print((unsigned int)zone_rgb);print(F(" "));
+  for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
+    for(byte x=0; x<3; x++) { print(sliders[zone_i].rgb[x]); print(F(",")); }
+    print(F("|"));
+    }
+  println();
   print(F("first pixel @"));print((unsigned int)*patch);Serial.println();
   for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
@@ -272,7 +278,7 @@ void update_by_dandelion(const byte *zone_rgb[3] /* [Zone_Count][3] */, const by
     for (byte zone_i=0; zone_i < Zone_Count; zone_i++) {
       print(F("  check zone @"));print((unsigned int)patch + zone_i * sizeof(byte**));print(F(" #"));print(zone_i);Serial.println();
       print(F("  check zone 1st pixel@"));print((unsigned int)patch[zone_i]);print(F(" #"));print(zone_i);Serial.println();
-      const byte *rgb_values = (byte*)(zone_rgb+zone_i);
+      const byte *rgb_values = zone_rgb[zone_i].rgb;
       for (const byte* pix = patch[zone_i];  *pix != 0xff; pix++) {
         byte dandelion_for_pixel = *pix / Pixels_Per_Dandelion;
         print(F("    pix @"));print((unsigned int)pix);print(F(" #"));print(*pix);print(F(" -> dandelion i "));print(dandelion_for_pixel);Serial.println();
@@ -295,15 +301,14 @@ void update_by_dandelion(const byte *zone_rgb[3] /* [Zone_Count][3] */, const by
 
 void show_patch(const byte** patch) {
   // indicate patch r,g,b,rgb on 1st/last pixel
-  byte rgb[Zone_Count][sizeof(RGBPot)]; // r,g,b,blah...
-  // copy pointers so we have byte**
-  print(F("rgb buff is @"));print((unsigned int) rgb);print(F("[z=0]@"));print((unsigned int) rgb[0]);
-  print(F(" [0][2]@"));print((unsigned int) &rgb[0][2]);
-  print(F(" [1][0]@"));print((unsigned int) &rgb[1][0]);
+  // Uses extant "sliders" list (assume reading them is off)
+  print(F("sliders list @"));print((unsigned int) sliders);print(F("[z=0]@"));print((unsigned int) &sliders[0]);
+  print(F(" [0][2]@"));print((unsigned int) &sliders[0].rgb[2]);
+  print(F(" [1][0]@"));print((unsigned int) &sliders[1].rgb[0]);
   println();
   for(byte z=0; z<Zone_Count; z++) { 
     print(F(" z"));print(z);print(F("@'s:")); 
-    for(byte i=0; i<3; i++) { print((unsigned int) (&rgb[z][i])); print(F(",")); }
+    for(byte i=0; i<3; i++) { print((unsigned int) (&sliders[z].rgb[i])); print(F(",")); }
     }
   println();
 
@@ -312,14 +317,24 @@ void show_patch(const byte** patch) {
     Serial.print(F("Zone "));Serial.println(i);
     byte rgb_bits = i % 6 + 1; // up to 6 zones mapped to 1..6, 3bits where 1 or 2 bits are on at a time
 
-    // set this zone to interesting value, set others to 0
-    memset((byte*)rgb, 0, 3 * Zone_Count);
-    rgb[i][0] = (rgb_bits & 0b001) ? 100 : 0;
-    rgb[i][1] = (rgb_bits & 0b010) ? 100 : 0;
-    rgb[i][2] = (rgb_bits & 0b100) ? 100 : 0;
-    print(F("  want rgb ")); for(byte x=0; x<3; x++) { print(rgb[i][x]); print(F(",")); }
+    for(byte xi=0; xi < Zone_Count; xi++) {
+      // set this zone to interesting value
+      if (xi==i) {
+        sliders[i].rgb[0] = (rgb_bits & 0b001) ? 100 : 0;
+        sliders[i].rgb[1] = (rgb_bits & 0b010) ? 100 : 0;
+        sliders[i].rgb[2] = (rgb_bits & 0b100) ? 100 : 0;
+        print(F("  want 0b")); print(rgb_bits,BIN);print(F("=>rgb @"));print((unsigned int) &sliders[i].rgb[0]);print(F(" "));
+        for(byte x=0; x<3; x++) { print(sliders[i].rgb[x]); print(F(",")); }
+        println();
+        }
+      // Set other zones to 0
+      else {
+        print(F("  zap "));print(i);print(F(" @"));print((unsigned int)&sliders[i]);println();
+        memset(sliders[xi].rgb, 0, 3);
+        }
+      }
 
-    update_by_dandelion((const byte**)rgb, patch);
+    update_by_dandelion(sliders, patch);
     delay(1000);
     }
     
@@ -328,6 +343,7 @@ void show_patch(const byte** patch) {
 
 void performance(const byte** patch) {
   RGBPot::start_reading(sliders);
+  delay(100);
   while(Serial.available() <= 0) {
     print(F("Sliders: "));
     for(byte i=0; i<Zone_Count; i++) {
@@ -338,7 +354,7 @@ void performance(const byte** patch) {
       print(F("  "));
       }
     Serial.println();
-    update_by_dandelion((const byte**)sliders, patch);
+    update_by_dandelion(sliders, patch);
     }
   RGBPot::stop_reading();
   }
