@@ -257,6 +257,7 @@ void track_print_pots() {
 
 void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) {
   // Do each dandelion so we only have to "buffer" 15 values at a time
+  /*
   Serial.println();
   print(F(" slider@"));print((unsigned int)zone_rgb);print(F(" "));
   for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
@@ -265,36 +266,40 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
     }
   println();
   print(F("first pixel @"));print((unsigned int)*patch);Serial.println();
+  */
   for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
     TLC59116& dandelion = tlcmanager[dandelion_i];
     byte pwm_buffer[16] = {}; // rgb sets. if no zone-pixel anywhere, then off
-    print(F("pwm buffer "));print((unsigned int) pwm_buffer);Serial.println();
-    print(F("Dandelion 0x")); print(dandelion.address(),HEX);print(F(" i:"));print(dandelion_i);Serial.println();
+    // print(F("pwm buffer "));print((unsigned int) pwm_buffer);println();
+    // print(F("Dandelion 0x")); print(dandelion.address(),HEX);print(F(" i:"));print(dandelion_i);println();
 
-    // patch: [ zone:[ pixel:i, ...], ... ]
     // FIXME: we should construct a reverse table: zone_i -> [dandelion/channels,...]
-    print(F("patch @"));print((unsigned int)patch);print(F(" ptr size"));print(sizeof(patch));Serial.println();
+    // print(F("patch @"));print((unsigned int)patch);print(F(" ptr size"));print(sizeof(patch));Serial.println();
     for (byte zone_i=0; zone_i < Zone_Count; zone_i++) {
-      print(F("  check zone @"));print((unsigned int)patch + zone_i * sizeof(byte**));print(F(" #"));print(zone_i);Serial.println();
-      print(F("  check zone 1st pixel@"));print((unsigned int)patch[zone_i]);print(F(" #"));print(zone_i);Serial.println();
+      // print(F("  check zone @"));print((unsigned int)patch + zone_i * sizeof(byte**));print(F(" #"));print(zone_i);println();
+      // print(F("  check zone 1st pixel@"));print((unsigned int)patch[zone_i]);print(F(" #"));print(zone_i);println();
       const byte *rgb_values = zone_rgb[zone_i].rgb;
       for (const byte* pix = patch[zone_i];  *pix != 0xff; pix++) {
         byte dandelion_for_pixel = *pix / Pixels_Per_Dandelion;
-        print(F("    pix @"));print((unsigned int)pix);print(F(" #"));print(*pix);print(F(" -> dandelion i "));print(dandelion_for_pixel);Serial.println();
+        // print(F("    pix @"));print((unsigned int)pix);print(F(" #"));print(*pix);
+        //   print(F(" -> dandelion i "));print(dandelion_for_pixel);println();
         if (dandelion_for_pixel == dandelion_i) {
           byte rgb_i = *pix % Pixels_Per_Dandelion;
           byte channel = rgb_i * 3; // pixel #2 is at 2*3=channel 6,7,8
-          print(F("    "));print(*pix); print(F("->led #")); print(channel);Serial.println();
-          print(F("    copy rgb[zone_i] @"));print((unsigned int) rgb_values);print(F(" to pwm "));print((unsigned int) pwm_buffer + channel);
+          /*
+          print(F("    "));print(*pix); print(F("->led #")); print(channel);println();
+          print(F("    copy rgb[zone_i] @"));print((unsigned int) rgb_values);print(F(" to pwm "));
+            print((unsigned int) pwm_buffer + channel);
             print(F(" rgb")); print(*rgb_values);print(F(","));print(*(rgb_values+1));print(F(","));print(*(rgb_values+2));
-            Serial.println();
+            println();
+          */
           memcpy(pwm_buffer + channel, rgb_values, 3);
-          delay(200);
+          // delay(200);
           }
         }
       }
-    print(F("set dandelion"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
+    // print(F("set dandelion"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
     dandelion.pwm(pwm_buffer);
     }
   }
@@ -302,6 +307,7 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
 void show_patch(const byte** patch) {
   // indicate patch r,g,b,rgb on 1st/last pixel
   // Uses extant "sliders" list (assume reading them is off)
+  /* 
   print(F("sliders list @"));print((unsigned int) sliders);print(F("[z=0]@"));print((unsigned int) &sliders[0]);
   print(F(" [0][2]@"));print((unsigned int) &sliders[0].rgb[2]);
   print(F(" [1][0]@"));print((unsigned int) &sliders[1].rgb[0]);
@@ -311,10 +317,11 @@ void show_patch(const byte** patch) {
     for(byte i=0; i<3; i++) { print((unsigned int) (&sliders[z].rgb[i])); print(F(",")); }
     }
   println();
+  */
 
   // highlight each zone
   for(byte i =0; i < Zone_Count; i++) {
-    Serial.print(F("Zone "));Serial.println(i);
+    // print(F("Zone "));println(i);
     byte rgb_bits = i % 6 + 1; // up to 6 zones mapped to 1..6, 3bits where 1 or 2 bits are on at a time
 
     for(byte xi=0; xi < Zone_Count; xi++) {
@@ -323,13 +330,15 @@ void show_patch(const byte** patch) {
         sliders[i].rgb[0] = (rgb_bits & 0b001) ? 100 : 0;
         sliders[i].rgb[1] = (rgb_bits & 0b010) ? 100 : 0;
         sliders[i].rgb[2] = (rgb_bits & 0b100) ? 100 : 0;
+        /*
         print(F("  want 0b")); print(rgb_bits,BIN);print(F("=>rgb @"));print((unsigned int) &sliders[i].rgb[0]);print(F(" "));
         for(byte x=0; x<3; x++) { print(sliders[i].rgb[x]); print(F(",")); }
         println();
+        */
         }
       // Set other zones to 0
       else {
-        print(F("  zap "));print(i);print(F(" @"));print((unsigned int)&sliders[i]);println();
+        // print(F("  zap "));print(i);print(F(" @"));print((unsigned int)&sliders[i]);println();
         memset(sliders[xi].rgb, 0, 3);
         }
       }
@@ -345,6 +354,7 @@ void performance(const byte** patch) {
   RGBPot::start_reading(sliders);
   delay(100);
   while(Serial.available() <= 0) {
+    /*
     print(F("Sliders: "));
     for(byte i=0; i<Zone_Count; i++) {
       print(i);print(F("@"));print((unsigned int) sliders[i].rgb);print(F(":"));
@@ -354,6 +364,7 @@ void performance(const byte** patch) {
       print(F("  "));
       }
     Serial.println();
+    */
     update_by_dandelion(sliders, patch);
     }
   RGBPot::stop_reading();
