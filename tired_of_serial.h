@@ -1,6 +1,7 @@
 // So tired of typing "Serial.print"
 template <typename T> void inline print(T msg) { Serial.print(msg); }
 template <typename T> void inline print(T msg, int format) { Serial.print(msg,format); }
+void inline println() { Serial.println(); }
 
 // convenience to print a value with base (hex/bin) & leading zeros according to size
 template <typename T> void printw(T msg, int format) {
