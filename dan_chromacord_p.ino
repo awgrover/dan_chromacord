@@ -13,7 +13,6 @@ const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
 const int Test_Pot_Pin = 0;
 TLC59116Manager tlcmanager; // defaults
 
-
 extern int __bss_end;
 extern void *__brkval;
 
@@ -371,7 +370,7 @@ void performance(const byte** patch) {
 
 byte choose_patch(byte current) {
   for (byte i=0; i < Patch_Count; i++) {
-    print(i==current ? "=" : " ");print(" ");Serial.println(i);
+    print(i==current ? "=" : " ");print(" ");print(i); print(" "); print_pgm_string(patch_names,i); println();
     }
   print(F("Choose: ")); 
   while(Serial.available() <= 0) {}

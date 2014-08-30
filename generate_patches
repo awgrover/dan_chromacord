@@ -10,6 +10,7 @@ sub construct {
     my ($patchfile, $patchname, $patch) = @_;
     my $fullname = "patch_".basename($patchfile,'.patch');
     $fullname .= "_$patchname" if $patchname;
+
     my $at = $patchname ? "[$patchname] " : '';
     say "construct $fullname // from $at$patchfile";
     die "Error, expected 4 zones, found ",scalar(@$patch)," for $at$patchfile" if scalar(@$patch) != 4;
@@ -60,8 +61,23 @@ foreach my $patchfile (@ARGV) {
         }
     else { die "What is $patchfile: ",ref($desc); }
     }
-push @output,"const byte** patches[] = {".join(", ",@patchnames)."};\n";
-$output[-1] .= 'const byte Patch_Count = count_of(patches);';
+
+push @output,"const byte** patches[] = {".join(", ",@patchnames)."};";
+
+my @trailer;
+my $i=0;
+foreach my $pn (@patchnames) {
+  $pn =~ s/^patch_//;
+  push @trailer, qq/  prog_char patch_name_${i}[] PROGMEM = "$pn";/;
+  $i++;
+  }
+push @trailer, "PROGMEM const char *patch_names[] = {";
+$trailer[-1] .= join(", ", map {"patch_name_$_"} (0..$#patchnames));
+$trailer[-1] .= "};";
+
+push @output,join("\n",@trailer);
+push @output,'const byte Patch_Count = count_of(patches);';
+
 push @output,"// End $marker";
 
 my $tempfile = $h_file . ".tmp";

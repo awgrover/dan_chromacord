@@ -25,3 +25,5 @@ template <typename T> void printw(T msg, int format) {
     }
   }
 
+void print_pgm_string(const char **pgm_str, byte ith);
+

@@ -15,7 +15,7 @@ menu : .$(ino).menu
 	awk '/$(menustart)/ {print; system("cat $<")}; /$(menuend)/ {print}; /$(menustart)/,/$(menuend)/ {next}; {print}' $(ino).bak > $(ino)
 	@echo Edited $(ino)
 
-patches.h : *.patch
+patches.h : *.patch generate_patches
 	./generate_patches patches.h *.patch
 
 # Launch ide
