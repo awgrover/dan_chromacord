@@ -7,7 +7,6 @@
 #include "patches.h"
 #include "sliders.h"
 #include "tired_of_serial.h"
-#include "simple_sequence.h"
 
 const byte Pixel_Count = 5*3;
 const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
