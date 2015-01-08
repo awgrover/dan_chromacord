@@ -32,3 +32,4 @@ extlib : lib_dir_link/tlc59116
 lib_dir_link/tlc59116 :
 	ln -s `realpath ../tlc59116_lib` `realpath lib_dir_link`/tlc59116
 	
+include *.mk

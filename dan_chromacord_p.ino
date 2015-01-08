@@ -1,6 +1,8 @@
 #include <Wire.h>
 #define TLC59116_WARNINGS 1
+#include <TLC59116_Unmanaged.h>
 #include <TLC59116.h>
+// NB: MsTimer2 needs to be version 0.6+ for mega2560
 #include <MsTimer2.h>
 #include "slopifier.h"
 #include "zone_patches.h"
@@ -10,31 +12,30 @@
 
 const byte Pixel_Count = 5*3;
 const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
-const int Test_Pot_Pin = 0;
-TLC59116Manager tlcmanager; // defaults
+const int Test_Pot_Pin = A1;
+TLC59116Manager tlcmanager; // (Wire, 5000); // defaults
 
 extern int __bss_end;
 extern void *__brkval;
 
-int get_free_memory() {
+void get_free_memory() {
   int free_memory;
 
   if((int)__brkval == 0)
     free_memory = ((int)&free_memory) - ((int)&__bss_end);
   else
     free_memory = ((int)&free_memory) - ((int)__brkval);
-
-  return free_memory;
+  Serial.print(F("Free memory "));Serial.println(free_memory);
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Top of setup");
-  Serial.print(F("Free memory "));Serial.println(get_free_memory());
+  get_free_memory();
   tlcmanager.init();
   // tlcmanager[0].set_milliamps(10);
   Serial.print(F("[0] is "));Serial.print(tlcmanager[0].milliamps());Serial.println(F("ma max"));
-  Serial.print(F("Free memory after init "));Serial.println(get_free_memory());
+  Serial.print(F("After init:"));get_free_memory();
   
   // check for pixels vs dandelion count
   byte pixel = 0;
@@ -85,6 +86,18 @@ void loop() {
       test_num = 0xff;
       break;
 
+    case 'm': // Free memory
+      get_free_memory();
+      test_num = 0xff;
+      break;
+
+    case 'R': // Reset
+      while(1) {
+      tlcmanager.reset();
+      }
+      test_num = 0xff;
+      break;
+
     case 'C': // get max/min of POT on A0 till 'x' (callibration)
       max_min_pot(Test_Pot_Pin);
       test_num = '?';
@@ -92,8 +105,7 @@ void loop() {
 
     case 'p': // Track Pot
       while (Serial.available() <= 0) {
-        int val = analogRead(Test_Pot_Pin);
-        Serial.println(val);
+        sliders[0].read(true);
         }
       test_num = 0xff;
       break;
@@ -105,21 +117,42 @@ void loop() {
 
     case 't' : // Timer test: make something blink every n
       g_tlc = tlc;
+      print("on/off for D");print(g_tlc->address(),HEX);println();
+      g_tlc->set(1, true);
       MsTimer2::set(200, on_off_isr);
       MsTimer2::start();
       while(Serial.available() <= 0) {
-        Serial.println(analogRead(3));
+        // Serial.println(analogRead(3));
         }
       MsTimer2::stop();
       tlcmanager.reset();
       test_num = 0xff;
       break;
       
-    case 's' : // Show patch
+    case 's' : // Demo Patch
       Serial.print(F("Patch "));Serial.println(current_patch_i);
       show_patch(patches[current_patch_i]);
       test_num = 0xff;
       break;
+
+    case 'S' : // Show patch
+      Serial.print(F("Patch "));Serial.println(current_patch_i);
+      print(F("Analog pins "));print(NUM_ANALOG_INPUTS);print(F(" :"));println();
+        print(F("A0 "));print(A0);println();
+        print(F("A1 "));print(A1);println();
+        print(F("A2 "));print(A2);println();
+        print(F("A3 "));print(A3);println();
+        print(F("A4 "));print(A4);println();
+        print(F("A5 "));print(A5);println();
+        print(F("A"));print((Zone_Count-1)*3);print(F(" "));print(analogInputToDigitalPin((Zone_Count-1)*3));println();
+        print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F(" "));print(analogInputToDigitalPin(NUM_ANALOG_INPUTS-1));println();
+      {
+      for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
+        int pin = sliders[zone_i].pin;
+        print(F("Zone "));print(zone_i);print(F(" pins "));print(pin);print(F(" - "));print(pin+2);println();
+        }
+      }
+      
 
     case 'g' : // Go into performance mode
       Serial.print(F("Patch "));Serial.println(current_patch_i);
@@ -135,14 +168,17 @@ void loop() {
     case '?' :
       Serial.println();
       // menu made by: make (in examples/, then insert here)
-Serial.println(F("0  idle/sanity"));
+Serial.println(F("0  (zero) show I'm working"));
 Serial.println(F("d  Describe actual registers"));
 Serial.println(F("r  Reset"));
+Serial.println(F("m  Free memory"));
+Serial.println(F("R  Reset"));
 Serial.println(F("C  get max/min of POT on A0 till 'x' (callibration)"));
 Serial.println(F("p  Track Pot"));
 Serial.println(F("P  Track pots with timer & stuff"));
 Serial.println(F("t  Timer test: make something blink every n"));
-Serial.println(F("s  Show patch"));
+Serial.println(F("s  Demo Patch"));
+Serial.println(F("S  Show patch"));
 Serial.println(F("g  Go into performance mode"));
 Serial.println(F("c  Choose another patch"));
       // end menu
@@ -237,6 +273,12 @@ void on_off_isr() {
 
 void track_print_pots() {
   RGBPot::start_reading(sliders);
+  for (byte i = 0; i<RGBPot::pot_list_count; i++) {
+    const RGBPot &this_pot = RGBPot::pot_list[i];
+    print(this_pot.pin);print("    ");
+    print(F(" | "));
+    }
+  println();
   while (Serial.available() <= 0) {
     for (byte i = 0; i<RGBPot::pot_list_count; i++) {
       const RGBPot &this_pot = RGBPot::pot_list[i];
@@ -319,7 +361,7 @@ void show_patch(const byte** patch) {
 
   // highlight each zone
   for(byte i =0; i < Zone_Count; i++) {
-    // print(F("Zone "));println(i);
+    print(F("Zone "));print(i);println();
     byte rgb_bits = i % 6 + 1; // up to 6 zones mapped to 1..6, 3bits where 1 or 2 bits are on at a time
 
     for(byte xi=0; xi < Zone_Count; xi++) {
@@ -328,11 +370,9 @@ void show_patch(const byte** patch) {
         sliders[i].rgb[0] = (rgb_bits & 0b001) ? 100 : 0;
         sliders[i].rgb[1] = (rgb_bits & 0b010) ? 100 : 0;
         sliders[i].rgb[2] = (rgb_bits & 0b100) ? 100 : 0;
-        /*
         print(F("  want 0b")); print(rgb_bits,BIN);print(F("=>rgb @"));print((unsigned int) &sliders[i].rgb[0]);print(F(" "));
         for(byte x=0; x<3; x++) { print(sliders[i].rgb[x]); print(F(",")); }
         println();
-        */
         }
       // Set other zones to 0
       else {
@@ -345,6 +385,7 @@ void show_patch(const byte** patch) {
     delay(1000);
     }
     
+  print(F("resetting on purpose"));println();
   tlcmanager.reset();
   }
 

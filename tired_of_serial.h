@@ -1,3 +1,6 @@
+#ifndef __tired_of_serial__
+#define __tired_of_serial__
+
 // So tired of typing "Serial.print"
 template <typename T> void inline print(T msg) { Serial.print(msg); }
 template <typename T> void inline print(T msg, int format) { Serial.print(msg,format); }
@@ -26,4 +29,4 @@ template <typename T> void printw(T msg, int format) {
   }
 
 void print_pgm_string(const char **pgm_str, byte ith);
-
+#endif
