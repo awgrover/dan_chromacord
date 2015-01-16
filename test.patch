@@ -1,22 +1,24 @@
 # either a bunch of patches: { testname : $patch }
 # or a patch: [ [ 1,3,3,..], ... 4ofem ]
+# A patch is a list of zones/sliders: [ [], [], [], [] ]
+#       Each list in a patch is a list of lunits: [ [0,1,2], ... ]
 # This is perl.
 { 
-    test_all1 => [
+    all1 => [
         [(0..4)],
         undef,
         undef,
         undef,
         ],
 
-    test_even_odd => [
+    even_odd => [
         [0,2,4],
         [1,3],
         undef,
         undef,
         ],
     
-    test_zones_on_one => [
+    zones_one_per => [
         [0],
         [1],
         [2],

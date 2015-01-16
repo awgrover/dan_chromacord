@@ -1,19 +1,28 @@
 #include <MsTimer2.h>
 #include "tired_of_serial.h"
+#include <RunningAverage.h>
 
 struct RGBPot {
-  byte rgb[3]; // scaled 0..255. can cast to (byte[3]) // Must be first for this cast
+  private:
+    RunningAverage *avg[3];
 
   public:
+    byte rgb[3]; // scaled 0..255. can cast to (byte[3]) // Must be first for this cast
     const byte pin;
     const int vmin;
     const int vmax;
 
-    RGBPot(byte read_pin, int analog_min, int analog_max) : pin(read_pin), vmin(analog_min), vmax(analog_max) {}
+    RGBPot(byte read_pin, int analog_min, int analog_max) 
+      : pin(read_pin), vmin(analog_min), vmax(analog_max) {
+        // 5 values for averaging
+        for(byte rgb_i=0; rgb_i < 3; rgb_i++) { avg[rgb_i] = new RunningAverage(5); }
+        }
+
     void read(bool verbose=false) {
         if (verbose) {print(F("   read "));print(this->pin);}
         for(byte rgb_i=0; rgb_i < 3; rgb_i++) {
-          this->rgb[rgb_i] = map(analogRead(this->pin + rgb_i), this->vmin, this->vmax, 0,255);
+          avg[rgb_i]->addValue(analogRead(this->pin + rgb_i));
+          this->rgb[rgb_i] = map(avg[rgb_i]->getAverage(), this->vmin, this->vmax, 0,255);
           if (verbose) {
             print(F(" "));print(rgb_i);print(F("="));print(this->rgb[rgb_i]);
             }

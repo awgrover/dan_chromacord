@@ -1,2 +1,9 @@
 The sliders are assigned to pins and rgb groups by sliders.h.
 
+Libraries:
+http://www.pjrc.com/teensy/arduino_libraries/MsTimer2.zip
+
+Put these in libraries/RobTillaartRunningAverage:
+https://github.com/RobTillaart/Arduino/blob/master/libraries/RunningAverage/RunningAverage.cpp
+https://github.com/RobTillaart/Arduino/blob/master/libraries/RunningAverage/RunningAverage.h
+

@@ -24,7 +24,7 @@ sub construct {
         my $zonedef_name = "${fullname}_z${i}";
         if ($zone_values && @$zone_values) {
             $zonedef .= "  const byte ${zonedef_name}[] = ";
-            $zonedef .= "{". join(",",@$zone_values,-1)."};";
+            $zonedef .= "{". join(",",(sort {$a<=>$b} @$zone_values),-1)."};";
             push @rez, $zonedef;
             }
         else {

@@ -2,10 +2,8 @@ ino=$(shell /bin/ls -1 *.ino | head -n 1)
 menustart := \/\/ menu made by:
 menuend := \/\/ end menu
 
-# ignores default "." otherwise
-PHONY : .$(ino).menu
-.$(ino).menu : $(ino)
-	perl -n -e '/case ('"'"'(.)'"'"'|([0-9]))\s*:\s*\/\/(.+)/i && do {print "Serial.println(F(\"$$2$$3 $$4\"));\n"}' $< > $@
+PHONY : build
+build : menu patches.h
 
 PHONY : menu
 menu : .$(ino).menu
@@ -14,6 +12,12 @@ menu : .$(ino).menu
 	@ cp $(ino) $(ino).bak
 	awk '/$(menustart)/ {print; system("cat $<")}; /$(menuend)/ {print}; /$(menustart)/,/$(menuend)/ {next}; {print}' $(ino).bak > $(ino)
 	@echo Edited $(ino)
+
+# ignores default "." otherwise
+PHONY : .$(ino).menu
+.$(ino).menu : $(ino)
+	perl -n -e '/case ('"'"'(.)'"'"'|([0-9]))\s*:\s*\/\/(.+)/i && do {print "Serial.println(F(\"$$2$$3 $$4\"));\n"}' $< > $@
+
 
 patches.h : *.patch generate_patches
 	./generate_patches patches.h *.patch
@@ -25,6 +29,11 @@ ide : log lib_dir_link/tlc59116
 
 log :  
 	mkdir -p log
+
+RobTillaartRunningAverage :
+	cd lib_dir_link && mkdir -p $@
+	cd lib_dir_link/$@ && wget -nd -p . -c 'https://github.com/RobTillaart/Arduino/raw/master/libraries/RunningAverage/RunningAverage.cpp' \
+	  https://github.com/RobTillaart/Arduino/raw/master/libraries/RunningAverage/RunningAverage.h
 
 # link in the external lib (which isn't when developing)
 .PHONY : extlib
