@@ -82,6 +82,10 @@ void loop() {
     case '0': // (zero) show I'm working
       Serial.print(F("Choose (? for help): "));
       prove_on(*tlc);
+      if (current_patch_i == 0xff) {
+        current_patch_i = current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin);
+        if (current_patch_i == 0xff) { current_patch_i = 0; }
+        }
       test_num = 'g';
       break;
 
@@ -287,13 +291,24 @@ void prove_on(TLC59116& tlc) {
   byte rgb_i = 0;
 
   print(F("attractor loop...."));println();
+
+  // Exit if knobs move
   int was = track_knobs_bits();
+
+  // Exit if slider[0][0] moves
+  RGBPot &s0 = sliders[0];
+  s0.read();
+  byte s00 = s0.rgb[0];
+  print(F("slider0.0 is "));print(s00);println();
+
   while (Serial.available() <= 0) {
     byte r = rgb_i * 3;
     // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
     tlcmanager[rgb_i / 5].pwm(r,70).delay(200).pwm(r,100);
     rgb_i++; if (rgb_i >= max_rgb) rgb_i=0;
     if (was != track_knobs_bits()) { break; }
+    s0.read(); if (abs(s0.rgb[0] - s00) > 30) { break; } // if slider moves "30"
+    // print(s0.rgb[0] - s00);println();
     }
   }
 
