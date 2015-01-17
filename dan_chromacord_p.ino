@@ -16,6 +16,9 @@ const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
 const int Test_Pot_Pin = A1;
 TLC59116Manager tlcmanager; // (Wire, 5000); // defaults
 
+const int Knob_Bits = 11; // Don't use top[5], put bottom[0] in it's place
+const int Knob_Bits_Start_Pin = 53 - Knob_Bits + 1; // higher pins easier to get to
+
 extern int __bss_end;
 extern void *__brkval;
 
@@ -59,15 +62,19 @@ void setup() {
     Serial.println();
     }
 
+  for(int i=Knob_Bits_Start_Pin; i < Knob_Bits + Knob_Bits_Start_Pin; i++) {
+    pinMode(i,INPUT_PULLUP); // knob pins are inverted: open is HIGH, closed is low
+    }
   track_knobs_bits();
   }
 
 TLC59116 *g_tlc; // only for the isr routine
 
+
 void loop() {
   static TLC59116 *tlc = NULL;
   static char test_num = '0';
-  static byte current_patch_i = 0;
+  static byte current_patch_i = track_knobs_bits();
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
@@ -75,7 +82,7 @@ void loop() {
     case '0': // (zero) show I'm working
       Serial.print(F("Choose (? for help): "));
       prove_on(*tlc);
-      test_num = 0xfe;
+      test_num = 'g';
       break;
 
     case 'd': // Describe actual registers
@@ -118,6 +125,18 @@ void loop() {
       test_num = 0xff;
       break;
 
+    case 'k' : // Track knob
+      {
+      int was_knob = -1;
+      while (Serial.available() <= 0) {
+        int is = track_knobs_bits();
+        if (is != was_knob) { print(F("KNOB "));print(is);println(); }
+        was_knob = is;
+        }
+      }
+      test_num = 0xff;
+      break;
+
     case 't' : // Timer test: make something blink every n
       g_tlc = tlc;
       print("on/off for D");print(g_tlc->address(),HEX);println();
@@ -134,7 +153,7 @@ void loop() {
       
     case 's' : // Demo Patch
       Serial.print(F("Patch "));Serial.println(current_patch_i);
-      show_patch(patches[current_patch_i]);
+      if (current_patch_i != 0xff) { show_patch(patches[current_patch_i]); }
       test_num = 0xff;
       break;
 
@@ -148,6 +167,7 @@ void loop() {
         print(F("A5="));print(A5);print(F(" "));
         print(F("A"));print((Zone_Count-1)*3);print(F("="));print(analogInputToDigitalPin((Zone_Count-1)*3));print(F(" "));
         print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F("="));print(analogInputToDigitalPin(NUM_ANALOG_INPUTS-1));println();
+      if (current_patch_i != 0xff) { print(F("Patch is -1")); println(); test_num=0xff; break; }
       {
       const byte **patch = patches[current_patch_i];
       for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
@@ -163,7 +183,10 @@ void loop() {
       break;
 
     case 'g' : // Go into performance mode
-      performance(current_patch_i);
+      while (current_patch_i == 0xff && Serial.available() <= 0) {current_patch_i = track_knobs_bits();}
+      if (current_patch_i != 0xff) {
+        performance(current_patch_i);
+        }
       test_num = 0xff;
       break;
 
@@ -183,6 +206,7 @@ Serial.println(F("R  Reset"));
 Serial.println(F("C  get max/min of POT on A0 till 'x' (callibration)"));
 Serial.println(F("p  Track Pot"));
 Serial.println(F("P  Track pots with timer & stuff"));
+Serial.println(F("k  Track knob"));
 Serial.println(F("t  Timer test: make something blink every n"));
 Serial.println(F("s  Demo Patch"));
 Serial.println(F("S  Show patch"));
@@ -263,11 +287,13 @@ void prove_on(TLC59116& tlc) {
   byte rgb_i = 0;
 
   print(F("attractor loop...."));println();
+  int was = track_knobs_bits();
   while (Serial.available() <= 0) {
     byte r = rgb_i * 3;
     // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
     tlcmanager[rgb_i / 5].pwm(r,70).delay(200).pwm(r,100);
     rgb_i++; if (rgb_i >= max_rgb) rgb_i=0;
+    if (was != track_knobs_bits()) { break; }
     }
   }
 
@@ -386,10 +412,10 @@ void show_patch(const byte** patch) {
   tlcmanager.reset();
   }
 
-void performance(byte patch_i) {
+void performance(byte &patch_i) {
   const byte** patch = patches[patch_i];
   print(F("Patch "));print(patch_i);print(F("@"));print((long)patch);print(F(" "));print_pgm_string(patch_names,patch_i);println();
-  unsigned next_knob_check = 0;
+  unsigned long next_knob_check = 0;
 
   RGBPot::start_reading(sliders);
   delay(100);
@@ -399,9 +425,9 @@ void performance(byte patch_i) {
 
     if (millis() > next_knob_check) { 
       int new_patch_i = track_knobs_bits(); 
-      if (new_patch_i != patch_i) { 
+      if (new_patch_i != patch_i && new_patch_i != -1) { 
         patch_i = new_patch_i;
-        // patch = patches[patch_i]; // FIXME: when knobs work!
+        patch = patches[patch_i]; // FIXME: when knobs work!
         }
       next_knob_check = millis() + 300;
       }
@@ -434,38 +460,42 @@ byte choose_patch(byte current) {
 
 int current_knob_bits(int knob_bits, int offset) {
   // -1 means no-bits set!
-  int is = -1;
   for(int i=offset; i< offset+knob_bits;i++) {
-    if (digitalRead( i )) { is=i; break; }
+    int v = digitalRead(i);
+    // print(F("..."));print(i);print(F("="));print(v);println();
+    if (! v) { return i - offset; }
     }
-  return is - offset;
+  return -1;
   }
 
 int track_knobs_bits() {
   // this blocks during debounce
-  const int knob_bits = 8;
+  // Returns -1 if unknown or no-change
   static int was = -1;
-  unsigned debounce_start = 0;
 
-  int is = -1;
+  int is;
   int wait_for = -1;
 
-  if ( (is=current_knob_bits(knob_bits, 0)) != was ) {
+  if ( (is=current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin)) != was ) {
+    unsigned debounce_start = 0;
+    // print(F("  knob..."));print(is);print(F(" vs "));print(was);println();
+    debounce_start = millis();
     while (1) {
       // Restart debounce if current changes
-      if (is != wait_for) {
+      if (0 && is != wait_for) { // NOT waiting for stable, just wait for 100 millis
         debounce_start = millis();
+        print(F("    bounce "));print(is);println();
         wait_for = is;
         }
       // Wait for time to pass (knob is stable)
       else if (millis()-debounce_start > 100) {
+        if (was != is) { print(F("Knob change "));print(is);println();}
         was = is;
-        print(F("Knob change "));print(was);println();
-        break;
+        return was;
         }
-      is=current_knob_bits(knob_bits, 0);
+      is=current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin);
       }
     }
 
-  return was;
+  return -1; // signal "no change"
   }

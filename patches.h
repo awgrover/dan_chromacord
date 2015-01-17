@@ -61,7 +61,7 @@ const byte* patch_test_even_odd[Zone_Count] = {patch_test_even_odd_z0, patch_tes
   const byte patch_test_zones_one_per_z0[] = {0,-1};
   const byte patch_test_zones_one_per_z1[] = {1,-1};
   const byte patch_test_zones_one_per_z2[] = {2,-1};
-  const byte patch_test_zones_one_per_z3[] = {3,4,-1};
+  const byte patch_test_zones_one_per_z3[] = {3,-1};
 const byte* patch_test_zones_one_per[Zone_Count] = {patch_test_zones_one_per_z0, patch_test_zones_one_per_z1, patch_test_zones_one_per_z2, patch_test_zones_one_per_z3};
 
 const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_check_sliders_2, patch_check_sliders_3, patch_check_sliders_across, patch_check_sliders_down, patch_test_all1, patch_test_even_odd, patch_test_zones_one_per};
