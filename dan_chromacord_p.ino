@@ -58,13 +58,15 @@ void setup() {
     print(pixel);
     Serial.println();
     }
+
+  track_knobs_bits();
   }
 
 TLC59116 *g_tlc; // only for the isr routine
 
 void loop() {
   static TLC59116 *tlc = NULL;
-  static char test_num = 0xff;
+  static char test_num = '0';
   static byte current_patch_i = 0;
   if (!tlc) tlc = &(tlcmanager[0]);
 
@@ -137,33 +139,37 @@ void loop() {
       break;
 
     case 'S' : // Show patch
-      Serial.print(F("Patch "));Serial.println(current_patch_i);
-      print(F("Analog pins "));print(NUM_ANALOG_INPUTS);print(F(" :"));println();
-        print(F("A0 "));print(A0);println();
-        print(F("A1 "));print(A1);println();
-        print(F("A2 "));print(A2);println();
-        print(F("A3 "));print(A3);println();
-        print(F("A4 "));print(A4);println();
-        print(F("A5 "));print(A5);println();
-        print(F("A"));print((Zone_Count-1)*3);print(F(" "));print(analogInputToDigitalPin((Zone_Count-1)*3));println();
-        print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F(" "));print(analogInputToDigitalPin(NUM_ANALOG_INPUTS-1));println();
+      print(F("Analog pins "));print(NUM_ANALOG_INPUTS);print(F(" : "));
+        print(F("A0="));print(A0);print(F(" "));
+        print(F("A1="));print(A1);print(F(" "));
+        print(F("A2="));print(A2);print(F(" "));
+        print(F("A3="));print(A3);print(F(" "));
+        print(F("A4="));print(A4);print(F(" "));
+        print(F("A5="));print(A5);print(F(" "));
+        print(F("A"));print((Zone_Count-1)*3);print(F("="));print(analogInputToDigitalPin((Zone_Count-1)*3));print(F(" "));
+        print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F("="));print(analogInputToDigitalPin(NUM_ANALOG_INPUTS-1));println();
       {
+      const byte **patch = patches[current_patch_i];
       for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
         int pin = sliders[zone_i].pin;
-        print(F("Zone "));print(zone_i);print(F(" pins "));print(pin);print(F(" - "));print(pin+2);println();
+        print(F("Zone "));print(zone_i);print(F(" pins "));print(pin);print(F(" - "));print(pin+2);print(F(" lunits "));
+        for (const byte* pix = patch[zone_i];  *pix != 0xff; pix++) {
+          print(*pix); print(F(" "));
+          }
+        println();
         }
       }
-      
+      test_num = 'g';
+      break;
 
     case 'g' : // Go into performance mode
-      Serial.print(F("Patch "));Serial.println(current_patch_i);
-      performance(patches[current_patch_i]);
+      performance(current_patch_i);
       test_num = 0xff;
       break;
 
     case 'c' : // Choose another patch
       current_patch_i = choose_patch(current_patch_i);
-      test_num = 0xff;
+      test_num = 'g';
       break;
 
     case '?' :
@@ -253,12 +259,13 @@ void prove_on(TLC59116& tlc) {
   // FIXME tlcmanager.broadcast().pwm(0,15,100);
   tlcmanager[0].pwm(0,15,100);
 
-  const byte max_rgb = tlcmanager.device_count() * 5;
+  const byte max_rgb = tlcmanager.device_count() * 5; // pixels-per-dandelion
   byte rgb_i = 0;
 
+  print(F("attractor loop...."));println();
   while (Serial.available() <= 0) {
     byte r = rgb_i * 3;
-    print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
+    // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
     tlcmanager[rgb_i / 5].pwm(r,70).delay(200).pwm(r,100);
     rgb_i++; if (rgb_i >= max_rgb) rgb_i=0;
     }
@@ -298,16 +305,6 @@ void track_print_pots() {
 
 void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) {
   // Do each dandelion so we only have to "buffer" 15 values at a time
-  /*
-  Serial.println();
-  print(F(" slider@"));print((unsigned int)zone_rgb);print(F(" "));
-  for(byte zone_i=0; zone_i<Zone_Count; zone_i++) {
-    for(byte x=0; x<3; x++) { print(sliders[zone_i].rgb[x]); print(F(",")); }
-    print(F("|"));
-    }
-  println();
-  print(F("first pixel @"));print((unsigned int)*patch);Serial.println();
-  */
   for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
     TLC59116& dandelion = tlcmanager[dandelion_i];
@@ -329,18 +326,17 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
           byte rgb_i = *pix % Pixels_Per_Dandelion;
           byte channel = rgb_i * 3; // pixel #2 is at 2*3=channel 6,7,8
           /*
-          print(F("    "));print(*pix); print(F("->led #")); print(channel);println();
+          print(F("    "));print(*pix); print(F("->led #")); print(channel);
           print(F("    copy rgb[zone_i] @"));print((unsigned int) rgb_values);print(F(" to pwm "));
             print((unsigned int) pwm_buffer + channel);
             print(F(" rgb")); print(*rgb_values);print(F(","));print(*(rgb_values+1));print(F(","));print(*(rgb_values+2));
-            println();
-          */
+            println(); delay(200);
+          */ 
           memcpy(pwm_buffer + channel, rgb_values, 3);
-          // delay(200);
           }
         }
       }
-    // print(F("set dandelion"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
+    // print(F("set dandelion["));print(dandelion_i);print(F("]"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
     dandelion.pwm(pwm_buffer);
     }
   }
@@ -390,22 +386,25 @@ void show_patch(const byte** patch) {
   tlcmanager.reset();
   }
 
-void performance(const byte** patch) {
+void performance(byte patch_i) {
+  const byte** patch = patches[patch_i];
+  print(F("Patch "));print(patch_i);print(F("@"));print((long)patch);print(F(" "));print_pgm_string(patch_names,patch_i);println();
+  unsigned next_knob_check = 0;
+
   RGBPot::start_reading(sliders);
   delay(100);
+
   while(Serial.available() <= 0) {
-    /*
-    print(F("Sliders: "));
-    for(byte i=0; i<Zone_Count; i++) {
-      print(i);print(F("@"));print((unsigned int) sliders[i].rgb);print(F(":"));
-      for(byte ii=0; ii<3; ii++) {
-        print(sliders[i].rgb[ii]);print(F(","));
-        }
-      print(F("  "));
-      }
-    Serial.println();
-    */
     update_by_dandelion(sliders, patch);
+
+    if (millis() > next_knob_check) { 
+      int new_patch_i = track_knobs_bits(); 
+      if (new_patch_i != patch_i) { 
+        patch_i = new_patch_i;
+        // patch = patches[patch_i]; // FIXME: when knobs work!
+        }
+      next_knob_check = millis() + 300;
+      }
     }
   RGBPot::stop_reading();
   }
@@ -414,14 +413,59 @@ byte choose_patch(byte current) {
   for (byte i=0; i < Patch_Count; i++) {
     print(i==current ? "=" : " ");print(" ");print(i); print(" "); print_pgm_string(patch_names,i); println();
     }
+  print(F(" = use knob"));println();
   print(F("Choose: ")); 
-  while(Serial.available() <= 0) {}
+  int knob = -1 ;
+  while(Serial.available() <= 0) { knob = track_knobs_bits(); }
   char choice = Serial.read();
   Serial.println(choice);
+  if (choice == '=') {
+    if (knob == -1) { print(F("What?")); println(); return current; }
+    print(knob);println();
+    choice = '0' + knob;
+    }
   if (choice >= '0' && choice <= '0'+Patch_Count-1) {
-    print(F("Set to "));Serial.println(choice);
+    print(F("Set to "));print(choice); print(F(" ")); print_pgm_string(patch_names,choice-'0');println();
     return choice-'0';
     }
   Serial.println(F("What?"));Serial.println();
   return current;
+  }
+
+int current_knob_bits(int knob_bits, int offset) {
+  // -1 means no-bits set!
+  int is = -1;
+  for(int i=offset; i< offset+knob_bits;i++) {
+    if (digitalRead( i )) { is=i; break; }
+    }
+  return is - offset;
+  }
+
+int track_knobs_bits() {
+  // this blocks during debounce
+  const int knob_bits = 8;
+  static int was = -1;
+  unsigned debounce_start = 0;
+
+  int is = -1;
+  int wait_for = -1;
+
+  if ( (is=current_knob_bits(knob_bits, 0)) != was ) {
+    while (1) {
+      // Restart debounce if current changes
+      if (is != wait_for) {
+        debounce_start = millis();
+        wait_for = is;
+        }
+      // Wait for time to pass (knob is stable)
+      else if (millis()-debounce_start > 100) {
+        was = is;
+        print(F("Knob change "));print(was);println();
+        break;
+        }
+      is=current_knob_bits(knob_bits, 0);
+      }
+    }
+
+  return was;
   }
