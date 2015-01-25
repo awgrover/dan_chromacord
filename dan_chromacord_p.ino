@@ -10,14 +10,14 @@
 #include "sliders.h"
 #include "tired_of_serial.h"
 #include <RunningAverage.h>
+#include "PatchSelectorDigital.h"
 
 const byte Pixel_Count = 5*3;
 const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
 const int Test_Pot_Pin = A1;
 TLC59116Manager tlcmanager; // (Wire, 5000); // defaults
 
-const int Knob_Bits = 11; // Don't use top[5], put bottom[0] in it's place
-const int Knob_Bits_Start_Pin = 53 - Knob_Bits + 1; // higher pins easier to get to
+PatchSelectorDigital patch_selector;
 
 extern int __bss_end;
 extern void *__brkval;
@@ -62,19 +62,26 @@ void setup() {
     Serial.println();
     }
 
-  for(int i=Knob_Bits_Start_Pin; i < Knob_Bits + Knob_Bits_Start_Pin; i++) {
-    pinMode(i,INPUT_PULLUP); // knob pins are inverted: open is HIGH, closed is low
-    }
-  track_knobs_bits();
+  // We don't use the initial patch-setting (we do "attractor" on reset).
+  int p = patch_selector.init();
+  print(F("Initial Patch Setting "));print(p);println();
   }
 
 TLC59116 *g_tlc; // only for the isr routine
 
+void x_knob_test_loop() {
+      int was_knob = -1;
+      while (Serial.available() <= 0) {
+        int is = patch_selector.read();
+        if (is != was_knob) { print(F("KNOB "));print(is);println(); }
+        was_knob = is;
+        }
+      }
 
 void loop() {
   static TLC59116 *tlc = NULL;
   static char test_num = '0';
-  static byte current_patch_i = track_knobs_bits();
+  static byte current_patch_i = patch_selector.read();
   if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
@@ -83,7 +90,7 @@ void loop() {
       Serial.print(F("Choose (? for help): "));
       prove_on(*tlc);
       if (current_patch_i == 0xff) {
-        current_patch_i = current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin);
+        current_patch_i = patch_selector.read();
         if (current_patch_i == 0xff) { current_patch_i = 0; }
         }
       test_num = 'g';
@@ -133,7 +140,7 @@ void loop() {
       {
       int was_knob = -1;
       while (Serial.available() <= 0) {
-        int is = track_knobs_bits();
+        int is = patch_selector.read();
         if (is != was_knob) { print(F("KNOB "));print(is);println(); }
         was_knob = is;
         }
@@ -187,7 +194,7 @@ void loop() {
       break;
 
     case 'g' : // Go into performance mode
-      while (current_patch_i == 0xff && Serial.available() <= 0) {current_patch_i = track_knobs_bits();}
+      while (current_patch_i == 0xff && Serial.available() <= 0) {current_patch_i = patch_selector.read();}
       if (current_patch_i != 0xff) {
         performance(current_patch_i);
         }
@@ -293,7 +300,7 @@ void prove_on(TLC59116& tlc) {
   print(F("attractor loop...."));println();
 
   // Exit if knobs move
-  int was = track_knobs_bits();
+  int was = patch_selector.read();
 
   // Exit if slider[0][0] moves
   RGBPot &s0 = sliders[0];
@@ -306,7 +313,7 @@ void prove_on(TLC59116& tlc) {
     // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
     tlcmanager[rgb_i / 5].pwm(r,70).delay(200).pwm(r,100);
     rgb_i++; if (rgb_i >= max_rgb) rgb_i=0;
-    if (was != track_knobs_bits()) { break; }
+    if (was != patch_selector.read()) { break; }
     s0.read(); if (abs(s0.rgb[0] - s00) > 30) { break; } // if slider moves "30"
     // print(s0.rgb[0] - s00);println();
     }
@@ -438,11 +445,12 @@ void performance(byte &patch_i) {
   while(Serial.available() <= 0) {
     update_by_dandelion(sliders, patch);
 
+    // Don't check knob each time, only every 300 or so
     if (millis() > next_knob_check) { 
-      int new_patch_i = track_knobs_bits(); 
+      int new_patch_i = patch_selector.read();
       if (new_patch_i != patch_i && new_patch_i != -1) { 
         patch_i = new_patch_i;
-        patch = patches[patch_i]; // FIXME: when knobs work!
+        patch = patches[patch_i];
         }
       next_knob_check = millis() + 300;
       }
@@ -457,7 +465,7 @@ byte choose_patch(byte current) {
   print(F(" = use knob"));println();
   print(F("Choose: ")); 
   int knob = -1 ;
-  while(Serial.available() <= 0) { knob = track_knobs_bits(); }
+  while(Serial.available() <= 0) { knob = patch_selector.read(); }
   char choice = Serial.read();
   Serial.println(choice);
   if (choice == '=') {
@@ -473,44 +481,3 @@ byte choose_patch(byte current) {
   return current;
   }
 
-int current_knob_bits(int knob_bits, int offset) {
-  // -1 means no-bits set!
-  for(int i=offset; i< offset+knob_bits;i++) {
-    int v = digitalRead(i);
-    // print(F("..."));print(i);print(F("="));print(v);println();
-    if (! v) { return i - offset; }
-    }
-  return -1;
-  }
-
-int track_knobs_bits() {
-  // this blocks during debounce
-  // Returns -1 if unknown or no-change
-  static int was = -1;
-
-  int is;
-  int wait_for = -1;
-
-  if ( (is=current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin)) != was ) {
-    unsigned debounce_start = 0;
-    // print(F("  knob..."));print(is);print(F(" vs "));print(was);println();
-    debounce_start = millis();
-    while (1) {
-      // Restart debounce if current changes
-      if (0 && is != wait_for) { // NOT waiting for stable, just wait for 100 millis
-        debounce_start = millis();
-        print(F("    bounce "));print(is);println();
-        wait_for = is;
-        }
-      // Wait for time to pass (knob is stable)
-      else if (millis()-debounce_start > 100) {
-        if (was != is) { print(F("Knob change "));print(is);println();}
-        was = is;
-        return was;
-        }
-      is=current_knob_bits(Knob_Bits, Knob_Bits_Start_Pin);
-      }
-    }
-
-  return -1; // signal "no change"
-  }
