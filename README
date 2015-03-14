@@ -7,3 +7,39 @@ Put these in libraries/RobTillaartRunningAverage:
 https://github.com/RobTillaart/Arduino/blob/master/libraries/RunningAverage/RunningAverage.cpp
 https://github.com/RobTillaart/Arduino/blob/master/libraries/RunningAverage/RunningAverage.h
 
+To generate patches.h:
+
+* Install ipython notebook, for python 2
+ * Windows
+  * Install Python2 (was 2.7.9 when I looked, whatever is the newest 2.7.x)
+    https://www.python.org/downloads/windows/
+     Python 2.7.9 - 2014-12-10
+         Download Windows x86 MSI installer
+  * Install "pip"
+   * it claims "pip" comes with python 2.7.9, 
+    * Test for it:
+    from a batch window, type:
+        pip --help
+    or
+        pip /help
+    It should be obvious               
+    * if not get it from
+    https://pip.pypa.io/en/latest/installing.html
+  * Install ipython notebook with pip (cf. http://ipython.org/install.html)
+    from a batch window, type:
+        pip install "ipython[notebook]"
+    Lots of stuff should install.
+    I'm expecting ipython... 3.0.x
+ * Linux
+    apt-get python2.7 python2.7-dev libzmq-dev
+    pip install --upgrade pyzmq tornado jinja2 jsonschema
+    sudo chmod -R a+r /usr/local/lib/python2.7/dist-packages
+
+* Start the ipython-notebook server
+    * windows, in a batch window, type:
+        ipython notebook
+    * Open a new'ish browser:
+        http://127.0.0.1:8888
+    * Download/drab the patchGenerate.ipynb to the window as directed
+
+

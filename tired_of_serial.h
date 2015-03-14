@@ -5,6 +5,7 @@
 template <typename T> void inline print(T msg) { Serial.print(msg); }
 template <typename T> void inline print(T msg, int format) { Serial.print(msg,format); }
 void inline println() { Serial.println(); }
+template <typename T> void inline println(T msg) { Serial.println(msg); }
 
 // convenience to print a value with base (hex/bin) & leading zeros according to size
 template <typename T> void printw(T msg, int format) {

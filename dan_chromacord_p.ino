@@ -35,6 +35,7 @@ void get_free_memory() {
 void setup() {
   Serial.begin(115200);
   Serial.println("Top of setup");
+  // print("gcc ver ");println(__VERSION__);
   get_free_memory();
   tlcmanager.init();
   // tlcmanager[0].set_milliamps(10);
@@ -196,6 +197,10 @@ void loop() {
     case 'g' : // Go into performance mode
       while (current_patch_i == 0xff && Serial.available() <= 0) {current_patch_i = patch_selector.read();}
       if (current_patch_i != 0xff) {
+        if (current_patch_i >= Patch_Count) {
+          current_patch_i = 0;
+          print(F("Force patch to 0, because it was "));println(current_patch_i);
+          }
         performance(current_patch_i);
         }
       test_num = 0xff;
@@ -436,6 +441,12 @@ void show_patch(const byte** patch) {
 
 void performance(byte &patch_i) {
   const byte** patch = patches[patch_i];
+  /*
+  print(F("nlist* "));println((long)patch_names);
+  print(F("n* "));println((long)patch_name_0);
+  print(F("i "));println(patch_i);
+  print(F("nlistr+i "));println((long) (patch_names + patch_i));
+  */
   print(F("Patch "));print(patch_i);print(F("@"));print((long)patch);print(F(" "));print_pgm_string(patch_names,patch_i);println();
   unsigned long next_knob_check = 0;
 
@@ -448,7 +459,7 @@ void performance(byte &patch_i) {
     // Don't check knob each time, only every 300 or so
     if (millis() > next_knob_check) { 
       int new_patch_i = patch_selector.read();
-      if (new_patch_i != patch_i && new_patch_i != -1) { 
+      if (new_patch_i != patch_i && new_patch_i != -1 && new_patch_i < Patch_Count) { 
         patch_i = new_patch_i;
         patch = patches[patch_i];
         }
@@ -459,6 +470,7 @@ void performance(byte &patch_i) {
   }
 
 byte choose_patch(byte current) {
+  print(F("current "));println(current);
   for (byte i=0; i < Patch_Count; i++) {
     print(i==current ? "=" : " ");print(" ");print(i); print(" "); print_pgm_string(patch_names,i); println();
     }
@@ -469,9 +481,10 @@ byte choose_patch(byte current) {
   char choice = Serial.read();
   Serial.println(choice);
   if (choice == '=') {
-    if (knob == -1) { print(F("What?")); println(); return current; }
+    if (knob == -1) { print(F("Knob hadn't changed")); println(); return current; }
     print(knob);println();
     choice = '0' + knob;
+    return choice;
     }
   if (choice >= '0' && choice <= '0'+Patch_Count-1) {
     print(F("Set to "));print(choice); print(F(" ")); print_pgm_string(patch_names,choice-'0');println();

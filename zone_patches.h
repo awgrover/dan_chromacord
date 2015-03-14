@@ -15,7 +15,7 @@ struct RGBPot {
     RGBPot(byte read_pin, int analog_min, int analog_max) 
       : pin(read_pin), vmin(analog_min), vmax(analog_max) {
         // 5 values for averaging
-        for(byte rgb_i=0; rgb_i < 3; rgb_i++) { avg[rgb_i] = new RunningAverage(5); }
+        for(byte rgb_i=0; rgb_i < 3; rgb_i++) { avg[rgb_i] = new RunningAverage(10); }
         }
 
     void read(bool verbose=false) {

@@ -48,6 +48,19 @@ const byte* patch_check_sliders_across[Zone_Count] = {patch_check_sliders_across
   const byte patch_check_sliders_down_z3[] = {4,9,14,-1};
 const byte* patch_check_sliders_down[Zone_Count] = {patch_check_sliders_down_z0, patch_check_sliders_down_z1, patch_check_sliders_down_z2, patch_check_sliders_down_z3};
 
+// Patch built from [hypercube1] dan.patch
+  const byte patch_dan_hypercube1_z0[] = {0,4,5,9,10,14,-1};
+  const byte patch_dan_hypercube1_z1[] = {1,13,-1};
+  const byte patch_dan_hypercube1_z2[] = {2,7,12,-1};
+  const byte patch_dan_hypercube1_z3[] = {3,6,8,11,-1};
+const byte* patch_dan_hypercube1[Zone_Count] = {patch_dan_hypercube1_z0, patch_dan_hypercube1_z1, patch_dan_hypercube1_z2, patch_dan_hypercube1_z3};
+
+// Patch built from [hypercube2] dan.patch
+  const byte patch_dan_hypercube2_z0[] = {0,4,5,9,10,14,-1};
+  const byte patch_dan_hypercube2_z1[] = {1,3,6,8,11,13,-1};
+  const byte patch_dan_hypercube2_z2[] = {2,7,12,-1};
+const byte* patch_dan_hypercube2[Zone_Count] = {patch_dan_hypercube2_z0, patch_dan_hypercube2_z1, patch_dan_hypercube2_z2, patch_empty_zone};
+
 // Patch built from [all1] test.patch
   const byte patch_test_all1_z0[] = {0,1,2,3,4,-1};
 const byte* patch_test_all1[Zone_Count] = {patch_test_all1_z0, patch_empty_zone, patch_empty_zone, patch_empty_zone};
@@ -64,7 +77,7 @@ const byte* patch_test_even_odd[Zone_Count] = {patch_test_even_odd_z0, patch_tes
   const byte patch_test_zones_one_per_z3[] = {3,-1};
 const byte* patch_test_zones_one_per[Zone_Count] = {patch_test_zones_one_per_z0, patch_test_zones_one_per_z1, patch_test_zones_one_per_z2, patch_test_zones_one_per_z3};
 
-const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_check_sliders_2, patch_check_sliders_3, patch_check_sliders_across, patch_check_sliders_down, patch_test_all1, patch_test_even_odd, patch_test_zones_one_per};
+const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_check_sliders_2, patch_check_sliders_3, patch_check_sliders_across, patch_check_sliders_down, patch_dan_hypercube1, patch_dan_hypercube2, patch_test_all1, patch_test_even_odd, patch_test_zones_one_per};
 
   prog_char patch_name_0[] PROGMEM = "check_sliders";
   prog_char patch_name_1[] PROGMEM = "check_sliders_1";
@@ -72,10 +85,12 @@ const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_chec
   prog_char patch_name_3[] PROGMEM = "check_sliders_3";
   prog_char patch_name_4[] PROGMEM = "check_sliders_across";
   prog_char patch_name_5[] PROGMEM = "check_sliders_down";
-  prog_char patch_name_6[] PROGMEM = "test_all1";
-  prog_char patch_name_7[] PROGMEM = "test_even_odd";
-  prog_char patch_name_8[] PROGMEM = "test_zones_one_per";
-PROGMEM const char *patch_names[] = {patch_name_0, patch_name_1, patch_name_2, patch_name_3, patch_name_4, patch_name_5, patch_name_6, patch_name_7, patch_name_8};
+  prog_char patch_name_6[] PROGMEM = "dan_hypercube1";
+  prog_char patch_name_7[] PROGMEM = "dan_hypercube2";
+  prog_char patch_name_8[] PROGMEM = "test_all1";
+  prog_char patch_name_9[] PROGMEM = "test_even_odd";
+  prog_char patch_name_10[] PROGMEM = "test_zones_one_per";
+PROGMEM const char *patch_names[] = {patch_name_0, patch_name_1, patch_name_2, patch_name_3, patch_name_4, patch_name_5, patch_name_6, patch_name_7, patch_name_8, patch_name_9, patch_name_10};
 
 const byte Patch_Count = count_of(patches);
 
