@@ -2,12 +2,12 @@
 
 class PatchSelectorDigital {
   // first pass at an API for patch-selector: read(). internally deals with where that comes from
-  // Gives you an int: first byte is high-pin-knob, second byte is low-pin-knob
-  const static int KnobCt=2; // max for the moment
-  const static int KnobBits=4;
+  // Gives you an int: third nibble is high-pin-knob, least-significant nibble is low-pin-knob
+  const static int KnobCt=2; // 4 is max for the moment ("hex" knobs)
+  const static int KnobBits=4; // KnobCt * KnobBits <= (sizeof(int) * 8)
   const static int PinCt=KnobBits * KnobCt;
   const static int FirstPin= 53 - PinCt + 1; // higher-pins easier to access (atmega max digital pin)
-  const static int DebounceTime=50; // value has to be stable for this time
+  const static int DebounceTime=40; // value has to be stable for this time
 
   int was;
   unsigned long debounce_start;

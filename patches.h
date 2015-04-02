@@ -2,6 +2,7 @@ const byte Zone_Count = 4;
 
 #define count_of(A) (sizeof(A)/sizeof(A[0]))
 const byte patch_empty_zone[] = {-1};
+const byte* empty_patch[Zone_Count] = {patch_empty_zone, patch_empty_zone, patch_empty_zone, patch_empty_zone};
 
 // We have a list of patches
 //  patches[N] = { patch... }
