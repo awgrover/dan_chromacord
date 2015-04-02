@@ -1,6 +1,7 @@
 #include <MsTimer2.h>
 #include "tired_of_serial.h"
 #include <RunningAverage.h>
+#include <Arduino.h>
 
 struct RGBPot {
   private:
@@ -22,7 +23,8 @@ struct RGBPot {
         if (verbose) {print(F("   read "));print(this->pin);}
         for(byte rgb_i=0; rgb_i < 3; rgb_i++) {
           avg[rgb_i]->addValue(analogRead(this->pin + rgb_i));
-          this->rgb[rgb_i] = map(avg[rgb_i]->getAverage(), this->vmin, this->vmax, 0,255);
+          byte val = constrain(avg[rgb_i]->getAverage(), this->vmin, this->vmax);
+          this->rgb[rgb_i] = map(val, this->vmin, this->vmax, 0,255);
           if (verbose) {
             print(F(" "));print(rgb_i);print(F("="));print(this->rgb[rgb_i]);
             }
