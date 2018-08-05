@@ -7,7 +7,7 @@ class PatchSelectorDigital {
   const static int KnobBits=4; // KnobCt * KnobBits <= (sizeof(int) * 8)
   const static int PinCt=KnobBits * KnobCt;
   const static int FirstPin= 53 - PinCt + 1; // higher-pins easier to access (atmega max digital pin)
-  const static int DebounceTime=40; // value has to be stable for this time
+  const static int DebounceTime=50; // value has to be stable for this time
 
   int was;
   unsigned long debounce_start;

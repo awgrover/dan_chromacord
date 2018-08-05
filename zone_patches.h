@@ -20,16 +20,17 @@ struct RGBPot {
         }
 
     void read(bool verbose=false) {
-        if (verbose) {print(F("   read "));print(this->pin);}
+        if (verbose) {print(this->pin);print(F(":"));}
         for(byte rgb_i=0; rgb_i < 3; rgb_i++) {
-          avg[rgb_i]->addValue(analogRead(this->pin + rgb_i));
-          byte val = constrain(avg[rgb_i]->getAverage(), this->vmin, this->vmax);
+          int raw = analogRead(this->pin + rgb_i);
+          avg[rgb_i]->addValue(raw);
+          int val = constrain(avg[rgb_i]->getAverage(), this->vmin, this->vmax);
           this->rgb[rgb_i] = map(val, this->vmin, this->vmax, 0,255);
           if (verbose) {
-            print(F(" "));print(rgb_i);print(F("="));print(this->rgb[rgb_i]);
+            print(F(" "));print(rgb_i);print(F("="));print(raw);print(F("/"));print(this->rgb[rgb_i]);
             }
           }
-        if (verbose) {println();}
+        if (verbose) {print(F(" "));}
         }
 
   // Class

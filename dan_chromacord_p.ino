@@ -127,11 +127,14 @@ void loop() {
 
     case 'p': // Track Pot
       while (Serial.available() <= 0) {
-        sliders[0].read(true);
+        for(int i=0; i<Zone_Count; i++) {
+          sliders[i].read(true);
+          }
+        println();
         }
       test_num = 0xff;
       break;
-    
+
     case 'P' : // Track pots with timer & stuff
       track_print_pots();
       test_num = 0xff;
