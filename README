@@ -9,7 +9,7 @@ https://github.com/RobTillaart/Arduino/blob/master/libraries/RunningAverage/Runn
 
 To generate patches.h:
 
-* Install ipython notebook, for python 2
+* Install Jupyter Notebook (formerly "iptyon notebook"), https://jupyter.org, for python 2.7
  * Windows
   * Install Python2 (was 2.7.9 when I looked, whatever is the newest 2.7.x)
     https://www.python.org/downloads/windows/
@@ -24,22 +24,28 @@ To generate patches.h:
         pip /help
     It should be obvious               
     * if not get it from
-    https://pip.pypa.io/en/latest/installing.html
-  * Install ipython notebook with pip (cf. http://ipython.org/install.html)
+        https://pip.pypa.io/en/latest/installing.html
+  * Install jupyter notebook with pip (cf. http://ipython.org/install.html)
     from a batch window, type:
-        pip install "ipython[notebook]"
+        pip install --upgrade pip
+        pip install jupyter
     Lots of stuff should install.
-    I'm expecting ipython... 3.0.x
+    # as of 2018-08-05, jupyter is: ipython-5.8.0 jupyter-1.0.0
  * Linux
-    apt-get python2.7 python2.7-dev libzmq-dev
-    pip install --upgrade pyzmq tornado jinja2 jsonschema
+    apt-get install python2.7 python2.7-dev libzmq-dev
+    pip install --upgrade pip
+    pip install --upgrade pyzmq tornado jinja2 jsonschema jupyter
     sudo chmod -R a+r /usr/local/lib/python2.7/dist-packages
+    # as of 2018-08-05, jupyter is: ipython-5.8.0 jupyter-1.0.0
 
 * Start the ipython-notebook server
     * windows, in a batch window, type:
-        ipython notebook
-    * Open a new'ish browser:
-        http://127.0.0.1:8888
-    * Download/drab the patchGenerate.ipynb to the window as directed
+        jupyter notebook
+        # linux is same
+    * It should open in your browser, if not, copy the url and open a new'ish browser:
+        # something like: http://localhost:8888/?token=d9d61781cbec5f2991e36ef690b30380fb9a41980c5d9371
+    * Click on 
+        patchGenerate.ipynb
+    * Follow directions
 
 
