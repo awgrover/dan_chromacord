@@ -32,16 +32,21 @@ To generate patches.h:
     Lots of stuff should install.
     # as of 2018-08-05, jupyter is: ipython-5.8.0 jupyter-1.0.0
  * Linux
-    apt-get install python2.7 python2.7-dev libzmq-dev
-    pip install --upgrade pip
-    pip install --upgrade pyzmq tornado jinja2 jsonschema jupyter
-    sudo chmod -R a+r /usr/local/lib/python2.7/dist-packages
+    as root
+        apt-get install python2.7 python2.7-dev libzmq-dev python-pip
+        pip install --upgrade pip
+        pip install --upgrade pyzmq tornado jinja2 jsonschema jupyter
+        chmod -R a+r /usr/local/lib/python2.7/dist-packages
     # as of 2018-08-05, jupyter is: ipython-5.8.0 jupyter-1.0.0
 
 * Start the ipython-notebook server
     * windows, in a batch window, type:
         jupyter notebook
-        # linux is same
+    * linux:
+        open terminal
+        type: jupyter notbook
+        navigate to your .ipynb
+        click it
     * It should open in your browser, if not, copy the url and open a new'ish browser:
         # something like: http://localhost:8888/?token=d9d61781cbec5f2991e36ef690b30380fb9a41980c5d9371
     * Click on 
