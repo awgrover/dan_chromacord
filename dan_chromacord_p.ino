@@ -180,8 +180,8 @@ void loop() {
         print(F("A3="));print(A3);print(F(" "));
         print(F("A4="));print(A4);print(F(" "));
         print(F("A5="));print(A5);print(F(" "));
-        print(F("A"));print((Zone_Count-1)*3);print(F("="));print(analogInputToDigitalPin((Zone_Count-1)*3));print(F(" "));
-        print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F("="));print(analogInputToDigitalPin(NUM_ANALOG_INPUTS-1));println();
+        print(F("A"));print((Zone_Count-1)*3);print(F(" max used"));print(F(" "));
+        print(F("A"));print(NUM_ANALOG_INPUTS-1);print(F(" max"));println();
       if (current_patch_i != 0xff) { print(F("Patch is -1")); println(); test_num=0xff; break; }
       {
       const byte **patch = patches[current_patch_i];
@@ -270,6 +270,9 @@ void max_min_pot(int analog_pin) {
 
     Slopifier::Direction reversal = history.has_reversed();
     switch (reversal) {
+      case Slopifier::Flat:
+        // nothing to do I think?
+        break;
       case Slopifier::Up:
         max_measure[(i_max++) % measure_ct] = history.maxv;
         break;
@@ -450,7 +453,7 @@ void performance(byte &patch_i) {
   print(F("i "));println(patch_i);
   print(F("nlistr+i "));println((long) (patch_names + patch_i));
   */
-  print(F("Patch "));print(patch_i);print(F("@"));print((long)patch);print(F(" "));print_pgm_string(patch_names,patch_i);println();
+  print(F("Patch "));print(patch_i);print(F("@"));print((long)patch);print(F(" "));Serial.print(patch_names[patch_i]);println();
   unsigned long next_knob_check = 0;
 
   RGBPot::start_reading(sliders);
@@ -475,7 +478,7 @@ void performance(byte &patch_i) {
 byte choose_patch(byte current) {
   print(F("current "));println(current);
   for (byte i=0; i < Patch_Count; i++) {
-    print(i==current ? "=" : " ");print(" ");print(i); print(" "); print_pgm_string(patch_names,i); println();
+    print(i==current ? "=" : " ");print(" ");print(i); print(" "); Serial.print(patch_names[i]); println();
     }
   print(F(" = use knob"));println();
   print(F("Choose: ")); 
@@ -490,10 +493,9 @@ byte choose_patch(byte current) {
     return choice;
     }
   if (choice >= '0' && choice <= '0'+Patch_Count-1) {
-    print(F("Set to "));print(choice); print(F(" ")); print_pgm_string(patch_names,choice-'0');println();
+    print(F("Set to "));print(choice); print(F(" ")); Serial.print(patch_names[choice-'0']);println();
     return choice-'0';
     }
   Serial.println(F("What?"));Serial.println();
   return current;
   }
-
