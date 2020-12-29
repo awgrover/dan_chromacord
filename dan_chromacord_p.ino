@@ -1,7 +1,6 @@
-#include <Wire.h>
-#define TLC59116_WARNINGS 1
-#include <TLC59116_Unmanaged.h>
-#include <TLC59116.h>
+#include "PWM_TLC59116.h"
+PWM_TLC59116 PWM;
+
 // NB: MsTimer2 needs to be version 0.6+ for mega2560
 #include <MsTimer2.h>
 #include "slopifier.h"
@@ -15,7 +14,6 @@
 const byte Pixel_Count = 5*3;
 const byte Pixels_Per_Dandelion = int(16 / 3); // rounds to 5!
 const int Test_Pot_Pin = A1;
-TLC59116Manager tlcmanager; // (Wire, 5000); // defaults
 
 PatchSelectorDigital patch_selector;
 
@@ -37,9 +35,12 @@ void setup() {
   Serial.println("Top of setup");
   // print("gcc ver ");println(__VERSION__);
   get_free_memory();
-  tlcmanager.init();
-  // tlcmanager[0].set_milliamps(10);
-  Serial.print(F("[0] is "));Serial.print(tlcmanager[0].milliamps());Serial.println(F("ma max"));
+  
+  PWM.begin(0);
+  // for native pwm, you'd have to PWM.begin( each pin )
+  // PWM.tlc.set_milliamps(10);
+  
+  Serial.print(F("[0] is "));Serial.print(PWM.tlc[0].milliamps());Serial.println(F("ma max"));
   Serial.print(F("After init:"));get_free_memory();
   
   // check for pixels vs dandelion count
@@ -56,9 +57,9 @@ void setup() {
     print(F("  max "));print(pixel);Serial.println();
     }
   print(F("Max pixel "));print(pixel);Serial.println();
-  if (pixel >= tlcmanager.device_count() * Pixels_Per_Dandelion) {
-    print(F("ERROR, "));print(tlcmanager.device_count());print(F(" dandelions, which is 0.."));
-    print(tlcmanager.device_count() * Pixels_Per_Dandelion - 1 );print(F(" rgb pixels, but the patches have a rgb pixel # "));
+  if (pixel >= PWM.device_count() * Pixels_Per_Dandelion) {
+    print(F("ERROR, "));print(PWM.device_count());print(F(" dandelions, which is 0.."));
+    print(PWM.device_count() * Pixels_Per_Dandelion - 1 );print(F(" rgb pixels, but the patches have a rgb pixel # "));
     print(pixel);
     Serial.println();
     }
@@ -67,8 +68,6 @@ void setup() {
   int p = patch_selector.init();
   print(F("Initial Patch Setting "));print(p);println();
   }
-
-TLC59116 *g_tlc; // only for the isr routine
 
 void x_knob_test_loop() {
       int was_knob = -1;
@@ -80,16 +79,14 @@ void x_knob_test_loop() {
       }
 
 void loop() {
-  static TLC59116 *tlc = NULL;
   static char test_num = '0';
   static byte current_patch_i = patch_selector.read();
-  if (!tlc) tlc = &(tlcmanager[0]);
 
   switch (test_num) {
 
     case '0': // (zero) show I'm working
       Serial.print(F("Choose (? for help): "));
-      prove_on(*tlc);
+      prove_on();
       if (current_patch_i == 0xff) {
         current_patch_i = patch_selector.read();
         if (current_patch_i == 0xff) { current_patch_i = 0; }
@@ -97,14 +94,16 @@ void loop() {
       test_num = 'g';
       break;
 
+#ifdef USING_PWM_TLC59116
     case 'd': // Describe actual registers
       Serial.println();
-      tlc->describe_actual();
+      PWM.tlc[0].describe_actual();
       test_num = 0xff;
       break;
-
+#endif
+    
     case 'r': // Reset
-      tlcmanager.reset();
+      PWM.reset();
       test_num = 0xff;
       break;
 
@@ -115,7 +114,7 @@ void loop() {
 
     case 'R': // Reset
       while(1) {
-      tlcmanager.reset();
+      PWM.reset();
       }
       test_num = 0xff;
       break;
@@ -152,17 +151,20 @@ void loop() {
       test_num = 0xff;
       break;
 
-    case 't' : // Timer test: make something blink every n
-      g_tlc = tlc;
-      print("on/off for D");print(g_tlc->address(),HEX);println();
-      g_tlc->set(1, true);
+    case 't' : // Timer test: make something blink every n till serial input
+#ifdef USING_PWM_TLC59116
+      print("on/off for D");print(PWM.tlc[0].address(),HEX);println();
+#else
+      print("on/off for pwm 0");println();
+#endif
+      PWM.set(1, 1.0);
       MsTimer2::set(200, on_off_isr);
       MsTimer2::start();
       while(Serial.available() <= 0) {
         // Serial.println(analogRead(3));
         }
       MsTimer2::stop();
-      tlcmanager.reset();
+      PWM.reset();
       test_num = 0xff;
       break;
       
@@ -298,14 +300,17 @@ void max_min_pot(int analog_pin) {
   }
 
 
-void prove_on(TLC59116& tlc) {
+void prove_on() {
+  // i.e. show something happening: 2 level reds for each rgb set
   Serial.println("demo");
 
-  tlcmanager.reset();
-  // FIXME tlcmanager.broadcast().pwm(0,15,100);
-  tlcmanager[0].pwm(0,15,100);
+  PWM.reset();
+  // FIXME PWM.broadcast().pwm(0,15,100);
+  PWM.set(0,PWM.ChannelsPerDevice,100);
 
-  const byte max_rgb = tlcmanager.device_count() * 5; // pixels-per-dandelion
+  const byte max_rgb = PWM.device_count() * (PWM.ChannelsPerDevice/3); // rgb-pixels-per-dandelion
+  const byte rgb_per_device = PWM.ChannelsPerDevice/3;
+  
   byte rgb_i = 0;
 
   print(F("attractor loop...."));println();
@@ -320,10 +325,20 @@ void prove_on(TLC59116& tlc) {
   print(F("slider0.0 is "));print(s00);println();
 
   while (Serial.available() <= 0) {
-    byte r = rgb_i * 3;
+    // setting only the reds
+
+    // may not have a multiple of 3 channels per device (i.e. 16 channels)
+    byte device_num =  rgb_i / rgb_per_device;
+    byte rgb_set = rgb_i % rgb_per_device;
+    
+    byte r = (device_num * PWM.ChannelsPerDevice) + (rgb_set * 3);
     // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
-    tlcmanager[rgb_i / 5].pwm(r,70).delay(200).pwm(r,100);
+    PWM.set(r,70);
+    delay(200);
+    PWM.set(r,100);
+    
     rgb_i++; if (rgb_i >= max_rgb) rgb_i=0;
+    
     if (was != patch_selector.read()) { break; }
     s0.read(); if (abs(s0.rgb[0] - s00) > 30) { break; } // if slider moves "30"
     // print(s0.rgb[0] - s00);println();
@@ -333,8 +348,8 @@ void prove_on(TLC59116& tlc) {
 void on_off_isr() {
   static bool oo = 0;
   sei();
-  g_tlc->set(1, oo);
-  g_tlc->set(2, oo);
+  PWM.set(1, oo * 1.0);
+  PWM.set(2, oo * 1.0);
   oo = !oo;
   }
 
@@ -364,9 +379,8 @@ void track_print_pots() {
 
 void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) {
   // Do each dandelion so we only have to "buffer" 15 values at a time
-  for(byte dandelion_i=0; dandelion_i < tlcmanager.device_count(); dandelion_i++) {
+  for(byte dandelion_i=0; dandelion_i < PWM.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
-    TLC59116& dandelion = tlcmanager[dandelion_i];
     byte pwm_buffer[16] = {}; // rgb sets. if no zone-pixel anywhere, then off
     // print(F("pwm buffer "));print((unsigned int) pwm_buffer);println();
     // print(F("Dandelion 0x")); print(dandelion.address(),HEX);print(F(" i:"));print(dandelion_i);println();
@@ -396,7 +410,7 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
         }
       }
     // print(F("set dandelion["));print(dandelion_i);print(F("]"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
-    dandelion.pwm(pwm_buffer);
+    PWM.set(dandelion_i, pwm_buffer);
     }
   }
 
@@ -442,7 +456,7 @@ void show_patch(const byte** patch) {
     }
     
   print(F("resetting on purpose"));println();
-  tlcmanager.reset();
+  PWM.reset();
   }
 
 void performance(byte &patch_i) {

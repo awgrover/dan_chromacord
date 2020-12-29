@@ -11,7 +11,7 @@ const byte* empty_patch[Zone_Count] = {patch_empty_zone, patch_empty_zone, patch
 //  apatch[Zone_Count] = { <zone0>={ luna, lunb,..., 0xFF }, zone1, zone2, zone3... Zone_Count }
 //  Note that a zone's-list-of-lunits is terminated by 0xFF, since those lists are of possibly varying lengths.
 //  A list-of-lunits maybe 0 length: {0xFF}
-// The code maps lunits to dandeliions and outputs (in order).
+// The code maps lunits to dandelions and outputs (in order).
 // A lunit is a rgb "pixel": lunit0 is the first 3 dandelion outputs controlling rgb.
 // The rgb of a lunit is controlled by the rgb slider of a zone.
 // The rgb order is actually bgr

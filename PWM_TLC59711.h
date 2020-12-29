@@ -12,6 +12,7 @@ class PWM_TLC59711 : public PWM_Pins {
 
   public:
     static constexpr int RANGE =(2^16) - 1;
+    static constexpr int ChannelsPerDevice = 12;
 
     // just do 1 for now
     Adafruit_TLC59711 tlc = Adafruit_TLC59711(NUM_TLC59711); // default spi clock/data
