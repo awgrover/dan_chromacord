@@ -1,5 +1,17 @@
+#include "tired_of_serial.h"
+
+// "1" for performance box, "0" for lightpainting tlc59116 boxes
+#if 0
+// This is normal performance display: "dandelion"
 #include "PWM_TLC59116.h"
 PWM_TLC59116 PWM;
+using pwmrange_t = byte;
+#else
+// This is "manual lightpainting" 16 bit mode: tlc59711
+#include "PWM_TLC59711.h"
+PWM_TLC59711 PWM(1, 20, 21); // just 1, nb, data on 21 for phone cord;
+using pwmrange_t = uint16_t;
+#endif
 
 // NB: MsTimer2 needs to be version 0.6+ for mega2560
 #include <MsTimer2.h>
@@ -7,7 +19,6 @@ PWM_TLC59116 PWM;
 #include "zone_patches.h"
 #include "patches.h"
 #include "sliders.h"
-#include "tired_of_serial.h"
 #include <RunningAverage.h>
 #include "PatchSelectorDigital.h"
 
@@ -38,9 +49,37 @@ void setup() {
 
   PWM.begin(0);
   // for native pwm, you'd have to PWM.begin( each pin )
-  // PWM.tlc.set_milliamps(10);
 
-  Serial.print(F("[0] is ")); Serial.print(PWM.tlc[0].milliamps()); Serial.println(F("ma max"));
+  // debug test if tlc* works at all: pins 0/1 blink
+  if (0) {
+    bool onoff = 0;
+    println("blinking");
+
+    while (Serial.available() <= 0) {
+      PWM.set(0, onoff * 1.0);
+      PWM.set(1, ( ! onoff ) * 1.0);
+      //tlc.write();
+      delay(200);
+      onoff = ! onoff;
+    }
+  }
+  if (0) {
+    Adafruit_TLC59711 tlc = Adafruit_TLC59711(1, 20, 21);
+    bool onoff = 0;
+    println("blinking");
+
+    while (Serial.available() <= 0) {
+      tlc.setPWM(0, onoff * 65535u);
+      tlc.setPWM(1, ( ! onoff ) * 65535u);
+      tlc.write();
+      delay(200);
+      onoff = ! onoff;
+    }
+  }
+
+  // PWM.tlc->set_milliamps(10);
+  //Serial.print(F("[0] is "));Serial.print(PWM.tlc[0]->milliamps());Serial.println(F("ma max"));
+
   Serial.print(F("After init:")); get_free_memory();
 
   // check for pixels vs dandelion count
@@ -66,7 +105,7 @@ void setup() {
 
   // We don't use the initial patch-setting (we do "attractor" on reset).
   int p = patch_selector.init();
-  print(F("Initial Patch Setting ")); print(p); println();
+  print(F("Initial Patch Setting ")); print(p, HEX); println();
 }
 
 void x_knob_test_loop() {
@@ -75,7 +114,7 @@ void x_knob_test_loop() {
     int is = patch_selector.read();
     if (is != was_knob) {
       print(F("KNOB "));
-      print(is);
+      print(is, HEX);
       println();
     }
     was_knob = is;
@@ -83,7 +122,7 @@ void x_knob_test_loop() {
 }
 
 void loop() {
-  static char test_num = '0';
+  static char test_num = '?'; // FIXME
   static byte current_patch_i = patch_selector.read();
 
   switch (test_num) {
@@ -152,7 +191,7 @@ void loop() {
           int is = patch_selector.read();
           if (is != was_knob) {
             print(F("KNOB "));
-            print(is);
+            print(is, HEX);
             println();
           }
           was_knob = is;
@@ -160,6 +199,21 @@ void loop() {
       }
       test_num = 0xff;
       break;
+
+    case 'b' : // blink pins 0,1
+      {
+        bool onoff = 0;
+
+        while (Serial.available() <= 0) {
+          PWM.set(0, onoff * 1.0);
+          PWM.set(1, ( ! onoff ) * 1.0);
+          delay(200);
+          onoff = ! onoff;
+        }
+      }
+      test_num = '?';
+      break;
+
 
     case 't' : // Timer test: make something blink every n till serial input
 #ifdef USING_PWM_TLC59116
@@ -179,7 +233,7 @@ void loop() {
       break;
 
     case 's' : // Demo Patch
-      Serial.print(F("Patch ")); Serial.println(current_patch_i);
+      Serial.print(F("Patch ")); Serial.println(current_patch_i, HEX);
       if (current_patch_i != 0xff) {
         show_patch(patches[current_patch_i]);
       }
@@ -196,7 +250,8 @@ void loop() {
       print(F("A5=")); print(A5); print(F(" "));
       print(F("A")); print((Zone_Count - 1) * 3); print(F(" max used")); print(F(" "));
       print(F("A")); print(NUM_ANALOG_INPUTS - 1); print(F(" max")); println();
-      if (current_patch_i != 0xff) {
+
+      if (current_patch_i == 0xff) {
         print(F("Patch is -1"));
         println();
         test_num = 0xff;
@@ -213,7 +268,7 @@ void loop() {
           println();
         }
       }
-      test_num = 'g';
+      test_num = 0xFE;
       break;
 
     case 'g' : // Go into performance mode
@@ -223,7 +278,7 @@ void loop() {
       if (current_patch_i != 0xff) {
         if (current_patch_i >= Patch_Count) {
           current_patch_i = 0;
-          print(F("Force patch to 0, because it was ")); println(current_patch_i);
+          print(F("Force patch to 0, because it was ")); print(current_patch_i, HEX); println();
         }
         performance(current_patch_i);
       }
@@ -247,7 +302,8 @@ void loop() {
       Serial.println(F("p  Track Pot"));
       Serial.println(F("P  Track pots with timer & stuff"));
       Serial.println(F("k  Track knob"));
-      Serial.println(F("t  Timer test: make something blink every n"));
+      Serial.println(F("b  blink pins 0,1"));
+      Serial.println(F("t  Timer test: make something blink every n till serial input"));
       Serial.println(F("s  Demo Patch"));
       Serial.println(F("S  Show patch"));
       Serial.println(F("g  Go into performance mode"));
@@ -367,9 +423,10 @@ void prove_on() {
 
     byte r = (device_num * PWM.ChannelsPerDevice) + (rgb_set * 3);
     // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
-    PWM.set(r, 70);
+
+    PWM.set(r, 0.35);
     delay(200);
-    PWM.set(r, 100);
+    PWM.set(r, 0.4);
 
     rgb_i++; if (rgb_i >= max_rgb) rgb_i = 0;
 
@@ -386,8 +443,8 @@ void prove_on() {
 void on_off_isr() {
   static bool oo = 0;
   sei();
+  PWM.set(0, oo * 1.0);
   PWM.set(1, oo * 1.0);
-  PWM.set(2, oo * 1.0);
   oo = !oo;
 }
 
@@ -419,7 +476,7 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
   // Do each dandelion so we only have to "buffer" 15 values at a time
   for (byte dandelion_i = 0; dandelion_i < PWM.device_count(); dandelion_i++) {
     // Collect rgb values for this dandelion
-    byte pwm_buffer[16] = {}; // rgb sets. if no zone-pixel anywhere, then off
+    pwmrange_t pwm_buffer[16] = {}; // rgb sets. if no zone-pixel anywhere, then off
     // print(F("pwm buffer "));print((unsigned int) pwm_buffer);println();
     // print(F("Dandelion 0x")); print(dandelion.address(),HEX);print(F(" i:"));print(dandelion_i);println();
 
@@ -443,7 +500,17 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
             print(F(" rgb")); print(*rgb_values);print(F(","));print(*(rgb_values+1));print(F(","));print(*(rgb_values+2));
             println(); delay(200);
           */
-          memcpy(pwm_buffer + channel, rgb_values, 3);
+
+          if (sizeof(pwmrange_t) == sizeof(byte)) {
+            memcpy(pwm_buffer + channel, rgb_values, 3);
+          }
+          else {
+            // have to map the values to pwmrange_t
+            for (rgb_i = 0; rgb_i < 3; rgb_i++) {
+              // slightly clever to get the max value of pwmrange_t assuming it is unsigned!
+              pwm_buffer[rgb_i + channel] = map(rgb_values[rgb_i], 0, 255, 0, static_cast<pwmrange_t>(-1) );
+            }
+          }
         }
       }
     }
@@ -500,7 +567,8 @@ void show_patch(const byte** patch) {
   PWM.reset();
 }
 
-void performance(byte &patch_i) {
+
+void performance(byte & patch_i) {
   const byte** patch = patches[patch_i];
   /*
     print(F("nlist* "));println((long)patch_names);
@@ -535,6 +603,9 @@ byte choose_patch(byte current) {
   for (byte i = 0; i < Patch_Count; i++) {
     print(i == current ? "=" : " "); print(" "); print(i); print(" "); Serial.print(patch_names[i]); println();
   }
+  //println();
+  //return;
+
   print(F(" = use knob")); println();
   print(F("Choose: "));
   int knob = -1 ;

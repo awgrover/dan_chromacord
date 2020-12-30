@@ -78,7 +78,12 @@ const byte* patch_test_even_odd[Zone_Count] = {patch_test_even_odd_z0, patch_tes
   const byte patch_test_zones_one_per_z3[] = {3,0xFF};
 const byte* patch_test_zones_one_per[Zone_Count] = {patch_test_zones_one_per_z0, patch_test_zones_one_per_z1, patch_test_zones_one_per_z2, patch_test_zones_one_per_z3};
 
+#ifdef USING_PWM_TLC59116
 const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_check_sliders_2, patch_check_sliders_3, patch_check_sliders_across, patch_check_sliders_down, patch_dan_hypercube1, patch_dan_hypercube2, patch_test_all1, patch_test_even_odd, patch_test_zones_one_per};
+#endif
+#ifdef USING_PWM_TLC59711
+const byte** patches[] = {patch_test_zones_one_per};
+#endif
 
   const char patch_name_0[] PROGMEM = "check_sliders";
   const char patch_name_1[] PROGMEM = "check_sliders_1";
@@ -91,7 +96,12 @@ const byte** patches[] = {patch_check_sliders, patch_check_sliders_1, patch_chec
   const char patch_name_8[] PROGMEM = "test_all1";
   const char patch_name_9[] PROGMEM = "test_even_odd";
   const char patch_name_10[] PROGMEM = "test_zones_one_per";
+#ifdef USING_PWM_TLC59116  
 PGM_P const  patch_names[] PROGMEM = {patch_name_0, patch_name_1, patch_name_2, patch_name_3, patch_name_4, patch_name_5, patch_name_6, patch_name_7, patch_name_8, patch_name_9, patch_name_10};
+#endif
+#ifdef USING_PWM_TLC59711
+PGM_P const  patch_names[] PROGMEM = {patch_name_10};
+#endif
 
 const byte Patch_Count = count_of(patches);
 
