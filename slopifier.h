@@ -96,7 +96,7 @@ class Slopifier {
     Slopifier& operator=(const Slopifier&); // none
 
     void debug_direction(Direction x) {
-      char* names[] = {"None","Up","Down","Flat"};
+      const char* names[] = {"None","Up","Down","Flat"};
       D(names[x]);
       D(" ");
       }
@@ -106,4 +106,3 @@ class Slopifier {
       EOL;
       }
   };
-
