@@ -123,12 +123,12 @@ void x_knob_test_loop() {
 }
 
 void loop() {
-  static char test_num = '?'; // FIXME
+  static char test_num = '0';
   static byte current_patch_i = patch_selector.read();
 
   switch (test_num) {
 
-    case '0': // (zero) show I'm working
+    case '0': // (zero) show I'm working: attractor loop
       Serial.print(F("Choose (? for help): "));
       prove_on();
       if (current_patch_i == 0xff) {
