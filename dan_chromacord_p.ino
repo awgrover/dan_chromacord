@@ -1,7 +1,8 @@
 #include "tired_of_serial.h"
 
 // "1" for performance box, "0" for lightpainting tlc59116 boxes
-#if 0
+#define PERFORMANCE 0
+#if PERFORMANCE
 // This is normal performance display: "dandelion"
 #include "PWM_TLC59116.h"
 PWM_TLC59116 PWM;

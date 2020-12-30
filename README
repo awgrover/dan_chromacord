@@ -53,4 +53,34 @@ To generate patches.h:
         patchGenerate.ipynb
     * Follow directions
 
+# Modes of operation
 
+At start-up, goes into an attractor loop. Move slider 0 (3rd slider!) to enter performance mode.
+
+## Chromacord mode
+
+This is the normal performance mode with the chromacord box (dandelion aka tlc59116).
+Patches as described above.
+
+At the top of `dan_chromacord_p.ino`:
+
+  #define PERFORMANCE 1
+
+## Lightbox mode
+
+This is for setting/testing a light-painting, "tlc59711" aka 16-bit mode.
+This has exactly 4 zones mapped directly to the slider sets, so should be 1:1 slider to tlc pins.
+
+At the top of `dan_chromacord_p.ino`:
+
+  #define PERFORMANCE 0
+
+This currently relies on a specific patch in patches.h (the last one!).
+
+* set patch (rightmost selector) to 0
+* sliders == tlc outputs
+* prints the rgb values on the console (buad 115200)
+* change the patch selector to anything else and the printout pauses
+* using same sda/scl pins with straight-through phone cord, but that means data=21,clock=20 (opposite i2c).
+* take 4 phone-cord lines to the "in" side of the tlc: black=gnd,red=vcc,<skip v+>,grn=ci,yel=di
+** this assumes your v+ is hooked to something useful
