@@ -15,6 +15,7 @@ using pwmrange_t = uint16_t;
 
 // NB: MsTimer2 needs to be version 0.6+ for mega2560
 #include <MsTimer2.h>
+#include "every.h"
 #include "slopifier.h"
 #include "zone_patches.h"
 #include "patches.h"
@@ -508,13 +509,29 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
             // have to map the values to pwmrange_t
             for (rgb_i = 0; rgb_i < 3; rgb_i++) {
               // slightly clever to get the max value of pwmrange_t assuming it is unsigned!
-              pwm_buffer[rgb_i + channel] = map(rgb_values[rgb_i], 0, 255, 0, static_cast<pwmrange_t>(-1) );
+              pwm_buffer[channel + rgb_i] = map(rgb_values[rgb_i], 0, 255, 0, static_cast<pwmrange_t>(-1) );
+              /*print(F("  buffer[i"));print(rgb_i);print(F("+c")); print(channel);print(F("] : "));
+                print(rgb_values[rgb_i]);print(F(" = "));
+                print( map(rgb_values[rgb_i], 0, 255, 0, static_cast<pwmrange_t>(-1) ) );
+                println();
+              */
             }
           }
         }
       }
     }
     // print(F("set dandelion["));print(dandelion_i);print(F("]"));for(byte i=0; i<16; i++) {print(" ");print(pwm_buffer[i]);}Serial.println();
+#ifdef USING_PWM_TLC59711
+    // Show the color settings
+    static Every print_color(100);
+    if (print_color() ) {
+      for (int i = 0; i < 12; i++) {
+        print(pwm_buffer[i]); print(( i % 3 == 2) ? F(" : ") : F(" "));
+      }
+      println();
+    }
+#endif
+
     PWM.set(dandelion_i, pwm_buffer);
   }
 }
@@ -577,7 +594,7 @@ void performance(byte & patch_i) {
     print(F("nlistr+i "));println((long) (patch_names + patch_i));
   */
   print(F("Patch ")); print(patch_i); print(F("@")); print((long)patch); print(F(" ")); Serial.print(patch_names[patch_i]); println();
-  unsigned long next_knob_check = 0;
+  Every next_knob_check(200); // doesn't need to be static, we stay in a loop
 
   RGBPot::start_reading(sliders);
   delay(100);
@@ -586,13 +603,18 @@ void performance(byte & patch_i) {
     update_by_dandelion(sliders, patch);
 
     // Don't check knob each time, only every 300 or so
-    if (millis() > next_knob_check) {
+    if ( next_knob_check() ) {
       int new_patch_i = patch_selector.read();
+#ifdef USING_PWM_TLC59711
+      //pause so you can copy the printed values
+      while (new_patch_i != 0) {
+        new_patch_i = patch_selector.read();
+      }
+#endif
       if (new_patch_i != patch_i && new_patch_i != -1 && new_patch_i < Patch_Count) {
         patch_i = new_patch_i;
         patch = patches[patch_i];
       }
-      next_knob_check = millis() + 300;
     }
   }
   RGBPot::stop_reading();

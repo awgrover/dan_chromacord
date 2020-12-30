@@ -47,14 +47,14 @@ class PWM_TLC59711 : public PWM_Pins {
     // Give it a pin and int and you get PWM
     //void set(int pin, int brightness) { tlc->setPWM(pin, (uint16_t) brightness); }
     void set(int pin, uint16_t brightness) {
-      print("@");print(pin);print(F(" "));print(brightness);println();
-      tlc->setPWM(pin, brightness);
+      //print("@");print(pin);print(F(" "));print(brightness);println();
+      tlc->setPWM(pin, ~brightness); // nb: we use inverting drivers
       commit();
     }
 
     // A float is 0.0 ... 1.0, which will be mapped to the RANGE
     void set(int pin, double brightness) {
-      print("  @");print(pin);print(F(" "));print(brightness);println();
+      //print("  @");print(pin);print(F(" "));print(brightness);println();
       set(pin, (uint16_t) (brightness * RANGE) );
     }
 
@@ -78,7 +78,7 @@ class PWM_TLC59711 : public PWM_Pins {
       }
       commit();
     }
-    void set(const int device_i, const uint16_t (&buffer)[ChannelsPerDevice] ) {
+    void set(const int device_i, const uint16_t buffer[ChannelsPerDevice] ) {
       // set all values at once, [ChannelsPerDevice+1] buffer size
       // we are ignoring device_i here (till we figure out what more than 1 means)
       for (int i = 0; i < ChannelsPerDevice; i++) {
