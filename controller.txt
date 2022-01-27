@@ -1,0 +1,46 @@
+TO drive light-paintings.
+#define PERFORMANCE 0
+Hook the "tlc59711<->controller" cable into the tlc.
+
+4 zones, 4 "channels", 4 sets controllers
+
+1. The Every has to be powered (via the 12/5v regulator), so it can do the D4 pull up/down pin. The Every needs to have a recent light-painting code loaded (so it does D4).
+
+2. Add a TLC GND to perfboard GND.
+
+3. Label the perfboard locations of the CI & DI wires (for easy reattach). Putting all 4 wires from the Every on a header would be nice....
+
+On the Chromaccord:
+
+1. It will start in a marching red. This shows the 4 zones are working. (use 's' to show the zones).
+
+2. Move the third slider at least 2cm to exit attractor/red mode. OR change either right-two "patch" knobs.
+
+3. Set the right two patch knobs to "0" (up).
+
+4. Sliders are ordered left-to-right: BGR.
+
+5. Open the serial console (15200 baud).
+
+6. Play with sliders to explore colors.
+
+7. Turn either right two patch knobs to non-0 to freeze the color, and freeze the serial console. Read off the colors (copy/paste).
+
+8. Sadly, the serial console is RGB not BGR. And, apparently not full range (especially the first slider)?
+
+9. Left most sliders appear to be zone 0.
+
+In the serial console:
+* type 'b' to blink zone 1 (actually just red/green I think).
+* type 's' to run the sequence once (to check zones):
+	zone 0 red
+	zone 1 green
+	zone 2 yellow'ish
+	zone 3 blue
+* type 'g' to go back to slider-zone mode.
+* the system may lock up, hit reset button.
+
+We can make changes:
+* what order should the sliders be? rgb or bgr? Or hsv?
+* what range should be printed? 0..65535 ? 0.0 .. 1.0 ?
+* print in a different format? closer to something to paste into code?

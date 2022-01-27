@@ -6,7 +6,7 @@ class PatchSelectorDigital {
   const static int KnobCt=2; // 4 is max for the moment ("hex" knobs)
   const static int KnobBits=4; // KnobCt * KnobBits <= (sizeof(int) * 8)
   const static int PinCt=KnobBits * KnobCt;
-  const static int FirstPin= 53 - PinCt + 1; // higher-pins easier to access (atmega max digital pin)
+  const static int FirstPin= 49 - PinCt + 1; // higher-pins easier to access (atmega max digital pin), leave 50/51/52 free for spi
   const static int DebounceTime=50; // value has to be stable for this time
 
   int was;

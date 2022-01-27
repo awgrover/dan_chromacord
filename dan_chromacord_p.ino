@@ -1,4 +1,5 @@
 #include "tired_of_serial.h"
+#include "array_size.h"
 
 // "1" for performance box, "0" for lightpainting tlc59116 boxes
 #define PERFORMANCE 0
@@ -14,9 +15,7 @@ PWM_TLC59711 PWM(1, 20, 21); // just 1, nb, data on 21 for phone cord;
 using pwmrange_t = uint16_t;
 #endif
 
-// NB: MsTimer2 needs to be version 0.6+ for mega2560
-#include <MsTimer2.h>
-#include "every.h"
+#include "Every.h"
 #include "slopifier.h"
 #include "zone_patches.h"
 #include "patches.h"
@@ -44,7 +43,9 @@ void get_free_memory() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  serial_setup(115200);
+  Serial.println(F( "\n" "Start " __FILE__ " " __DATE__ " " __TIME__ " gcc " __VERSION__ ));
+
   Serial.println("Top of setup");
   // print("gcc ver ");println(__VERSION__);
   get_free_memory();
@@ -108,6 +109,16 @@ void setup() {
   // We don't use the initial patch-setting (we do "attractor" on reset).
   int p = patch_selector.init();
   print(F("Initial Patch Setting ")); print(p, HEX); println();
+
+  Timer settle_pots(200);
+  settle_pots.reset();
+  while (! settle_pots() ) {
+    RGBPot::read_pots( sliders );
+  }
+  print(F("Initial sliders, on A0=")); print(A0); print(F(" through ")); print( A0 + 3*3 ); println();
+  RGBPot::dump( sliders );
+
+  print("Setup done in msec "); println(millis());
 }
 
 void x_knob_test_loop() {
@@ -129,15 +140,20 @@ void loop() {
 
   switch (test_num) {
 
-    case '0': // (zero) show I'm working: attractor loop
-      Serial.print(F("Choose (? for help): "));
+    case '0': // (zero) show I'm working-- attractor loop 2 level reds for each rgb set
+      Serial.println(F("Choose (? for help): "));
+      
+      println(F("Attractor till slider[0] (3rd) moves >30..."));
       prove_on();
+      
       if (current_patch_i == 0xff) {
         current_patch_i = patch_selector.read();
         if (current_patch_i == 0xff) {
           current_patch_i = 0;
         }
       }
+      print(F("Changed patch to 0x")); print(current_patch_i, HEX); println();
+      println(F("Going to performance mode"));
       test_num = 'g';
       break;
 
@@ -217,21 +233,22 @@ void loop() {
       break;
 
 
-    case 't' : // Timer test: make something blink every n till serial input
+    case 't' : // Timer test: make tlc #1 blink every n till serial input
+      {
 #ifdef USING_PWM_TLC59116
-      print("on/off for D"); print(PWM.tlc[0].address(), HEX); println();
+        print("on/off for tlc "); print(PWM.tlc[0].address(), HEX); println(F(" [1]"));
 #else
-      print("on/off for pwm 0"); println();
+        print("on/off for pwm 1"); println();
 #endif
-      PWM.set(1, 1.0);
-      MsTimer2::set(200, on_off_isr);
-      MsTimer2::start();
-      while (Serial.available() <= 0) {
-        // Serial.println(analogRead(3));
+        Every::Toggle blink(200);
+        PWM.set(1, 1.0);
+        while (Serial.available() <= 0) {
+          // Serial.println(analogRead(3));
+          if (blink()) PWM.set(1, blink.state * 1.0);
+        }
+        PWM.reset();
+        test_num = 0xff;
       }
-      MsTimer2::stop();
-      PWM.reset();
-      test_num = 0xff;
       break;
 
     case 's' : // Demo Patch
@@ -295,7 +312,7 @@ void loop() {
     case '?' :
       Serial.println();
       // menu made by: make (in examples/, then insert here)
-      Serial.println(F("0  (zero) show I'm working"));
+      Serial.println(F("0  (zero) show I'm working-- attractor loop 2 level reds for each rgb set"));
       Serial.println(F("d  Describe actual registers"));
       Serial.println(F("r  Reset"));
       Serial.println(F("m  Free memory"));
@@ -394,10 +411,12 @@ void max_min_pot(int analog_pin) {
 
 void prove_on() {
   // i.e. show something happening: 2 level reds for each rgb set
-  Serial.println("demo");
+  Serial.println("demo/attractor");
 
   PWM.reset();
   // FIXME PWM.broadcast().pwm(0,15,100);
+  print(F("PWM.set pin 0, channelsperdevice "));print(PWM.ChannelsPerDevice);print(" devices "); print(PWM.device_count()); println();
+  print(F("First "));print( PWM.ChannelsPerDevice );print(F(" to 100/255"));println();
   PWM.set(0, PWM.ChannelsPerDevice, 100);
 
   const byte max_rgb = PWM.device_count() * (PWM.ChannelsPerDevice / 3); // rgb-pixels-per-dandelion
@@ -410,7 +429,8 @@ void prove_on() {
   // Exit if knobs move
   int was = patch_selector.read();
 
-  // Exit if slider[0][0] moves
+  // Exit if slider[0][0] moves...
+  
   RGBPot &s0 = sliders[0];
   s0.read();
   byte s00 = s0.rgb[0];
@@ -424,7 +444,7 @@ void prove_on() {
     byte rgb_set = rgb_i % rgb_per_device;
 
     byte r = (device_num * PWM.ChannelsPerDevice) + (rgb_set * 3);
-    // print(F("Will set D"));print(rgb_i/5);print(F(" C"));print(r);Serial.println();
+    //print(F("Will toggle Dev"));print(rgb_i/5);print(F(" Chan"));print(r);Serial.println(F(" from .35 to .4"));
 
     PWM.set(r, 0.35);
     delay(200);
@@ -435,7 +455,8 @@ void prove_on() {
     if (was != patch_selector.read()) {
       break;
     }
-    s0.read(); if (abs(s0.rgb[0] - s00) > 30) {
+    s0.read(); 
+    if (abs(s0.rgb[0] - s00) > 30) {
       break;  // if slider moves "30"
     }
     // print(s0.rgb[0] - s00);println();
@@ -451,26 +472,29 @@ void on_off_isr() {
 }
 
 void track_print_pots() {
-  RGBPot::start_reading(sliders);
-  for (byte i = 0; i < RGBPot::pot_list_count; i++) {
-    const RGBPot &this_pot = RGBPot::pot_list[i];
+  for (byte i = 0; i < array_size(sliders); i++) {
+    const RGBPot &this_pot = sliders[i];
     print(this_pot.pin); print("    ");
     print(F(" | "));
   }
   println();
   while (Serial.available() <= 0) {
-    for (byte i = 0; i < RGBPot::pot_list_count; i++) {
-      const RGBPot &this_pot = RGBPot::pot_list[i];
-      for (byte rgb_i = 0; rgb_i < 3; rgb_i++) {
-        print(this_pot.rgb[rgb_i]); print(" ");
+    Every say_value(200);
+
+    RGBPot::read_pots( sliders );
+
+    if ( say_value() ) {
+      for (byte i = 0; i < array_size(sliders); i++) {
+        const RGBPot &this_pot = sliders[i];
+        for (byte rgb_i = 0; rgb_i < 3; rgb_i++) {
+          print(this_pot.rgb[rgb_i]); print(" ");
+        }
+        print(F(" | "));
       }
-      print(F(" | "));
+      Serial.println();
     }
-    Serial.println();
-    delay(200);
 
   }
-  RGBPot::stop_reading();
 }
 
 
@@ -597,11 +621,11 @@ void performance(byte & patch_i) {
   print(F("Patch ")); print(patch_i); print(F("@")); print((long)patch); print(F(" ")); Serial.print(patch_names[patch_i]); println();
   Every next_knob_check(200); // doesn't need to be static, we stay in a loop
 
-  RGBPot::start_reading(sliders);
   delay(100);
 
   while (Serial.available() <= 0) {
     update_by_dandelion(sliders, patch);
+    RGBPot::read_pots( sliders );
 
     // Don't check knob each time, only every 300 or so
     if ( next_knob_check() ) {
@@ -618,7 +642,6 @@ void performance(byte & patch_i) {
       }
     }
   }
-  RGBPot::stop_reading();
 }
 
 byte choose_patch(byte current) {
