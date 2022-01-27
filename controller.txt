@@ -1,4 +1,7 @@
 TO drive light-paintings.
+    consider a 4PDT switch for the test box: i2c-every/spi-pots-cable
+    https://www.digikey.com/en/products/filter/slide-switches/213?s=N4IgjCBcoGwJxVAYygMwIYBsDOBTANCAPZQDaIALGGABxwDsIhAzDczAKwBMIAuoQAcALlBABlIQCcAlgDsA5iAC%2BhMMwAMiECkgYcBYmRBcuNWpsJcY9MB2ZNjcCvQ40%2BgkZHFS5ileBp1CGhtNCw8QhJIclZ1Kk1%2BEGFRCRkFZX8eaJBsAHdpISQAC3cQGC1pABNRAFowIIdkrwchAE8BXFF0bBQlJSA
+
 #define PERFORMANCE 0
 Hook the "tlc59711<->controller" cable into the tlc.
 
