@@ -21,7 +21,7 @@ struct RGBPot {
       }
     }
 
-    void read(bool verbose = false) {
+    void read(bool verbose = false, boolean performance=true) {
       //verbose = true;
       if (verbose) {
         print(this->pin);
@@ -31,7 +31,19 @@ struct RGBPot {
         int raw = analogRead(this->pin + rgb_i);
         avg[rgb_i]->addValue(raw);
         int val = constrain(avg[rgb_i]->getAverage(), this->vmin, this->vmax);
-        this->rgb[rgb_i] = map(val, this->vmin, this->vmax, 0, 255);
+        
+        if ( !performance ) {
+          // sliders appear to be in wrong order for RGB light-box mode
+          byte _i;
+          if ( rgb_i % 3 == 0) _i = rgb_i + 2;
+          else if (rgb_i % 3 == 2) _i = rgb_i - 2;
+          else _i = rgb_i;
+          this->rgb[_i] = map(val, this->vmin, this->vmax, 0, 255);
+        }
+        else {
+          this->rgb[rgb_i] = map(val, this->vmin, this->vmax, 0, 255);
+        }
+        
         if (verbose) {
           print(F(" ")); print(rgb_i); print(F("=")); print(raw); print(F("/")); print(this->rgb[rgb_i]);
         }
@@ -53,14 +65,14 @@ struct RGBPot {
     }
 
     template <int N>
-    static void read_pots(const RGBPot (&_pot_list)[N]) {
+    static void read_pots( RGBPot (&_pot_list)[N], boolean const performance) {
       // Size of pot_list is auto-magic-N if it was explicitly declared.
       static Every time_to_read(RGBPot::Sample_Interval);
 
       if ( time_to_read() ) {
         //println(F("Read pots..."));
         for (byte i = 0; i < N; i++) {
-          _pot_list[i].read();
+          _pot_list[i].read(false, performance);
         }
       }
 

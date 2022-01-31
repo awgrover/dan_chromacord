@@ -113,9 +113,9 @@ void setup() {
   Timer settle_pots(200);
   settle_pots.reset();
   while (! settle_pots() ) {
-    RGBPot::read_pots( sliders );
+    RGBPot::read_pots( sliders, PERFORMANCE );
   }
-  print(F("Initial sliders, on A0=")); print(A0); print(F(" through ")); print( A0 + 3*3 ); println();
+  print(F("Initial sliders, on A0=")); print(A0); print(F(" through ")); print( A0 + 3 * 3 ); println();
   RGBPot::dump( sliders );
 
   print("Setup done in msec "); println(millis());
@@ -142,10 +142,10 @@ void loop() {
 
     case '0': // (zero) show I'm working-- attractor loop 2 level reds for each rgb set
       Serial.println(F("Choose (? for help): "));
-      
+
       println(F("Attractor till slider[0] (3rd) moves >30..."));
       prove_on();
-      
+
       if (current_patch_i == 0xff) {
         current_patch_i = patch_selector.read();
         if (current_patch_i == 0xff) {
@@ -415,8 +415,8 @@ void prove_on() {
 
   PWM.reset();
   // FIXME PWM.broadcast().pwm(0,15,100);
-  print(F("PWM.set pin 0, channelsperdevice "));print(PWM.ChannelsPerDevice);print(" devices "); print(PWM.device_count()); println();
-  print(F("First "));print( PWM.ChannelsPerDevice );print(F(" to 100/255"));println();
+  print(F("PWM.set pin 0, channelsperdevice ")); print(PWM.ChannelsPerDevice); print(" devices "); print(PWM.device_count()); println();
+  print(F("First ")); print( PWM.ChannelsPerDevice ); print(F(" to 100/255")); println();
   PWM.set(0, PWM.ChannelsPerDevice, 100);
 
   const byte max_rgb = PWM.device_count() * (PWM.ChannelsPerDevice / 3); // rgb-pixels-per-dandelion
@@ -430,7 +430,7 @@ void prove_on() {
   int was = patch_selector.read();
 
   // Exit if slider[0][0] moves...
-  
+
   RGBPot &s0 = sliders[0];
   s0.read();
   byte s00 = s0.rgb[0];
@@ -455,7 +455,7 @@ void prove_on() {
     if (was != patch_selector.read()) {
       break;
     }
-    s0.read(); 
+    s0.read();
     if (abs(s0.rgb[0] - s00) > 30) {
       break;  // if slider moves "30"
     }
@@ -463,13 +463,6 @@ void prove_on() {
   }
 }
 
-void on_off_isr() {
-  static bool oo = 0;
-  sei();
-  PWM.set(0, oo * 1.0);
-  PWM.set(1, oo * 1.0);
-  oo = !oo;
-}
 
 void track_print_pots() {
   for (byte i = 0; i < array_size(sliders); i++) {
@@ -481,7 +474,7 @@ void track_print_pots() {
   while (Serial.available() <= 0) {
     Every say_value(200);
 
-    RGBPot::read_pots( sliders );
+    RGBPot::read_pots( sliders, PERFORMANCE );
 
     if ( say_value() ) {
       for (byte i = 0; i < array_size(sliders); i++) {
@@ -511,7 +504,9 @@ void update_by_dandelion(const RGBPot zone_rgb[Zone_Count], const byte **patch) 
     for (byte zone_i = 0; zone_i < Zone_Count; zone_i++) {
       // print(F("  check zone @"));print((unsigned int)patch + zone_i * sizeof(byte**));print(F(" #"));print(zone_i);println();
       // print(F("  check zone 1st pixel@"));print((unsigned int)patch[zone_i]);print(F(" #"));print(zone_i);println();
+
       const byte *rgb_values = zone_rgb[zone_i].rgb;
+
       for (const byte* pix = patch[zone_i];  *pix != 0xff; pix++) {
         byte dandelion_for_pixel = *pix / Pixels_Per_Dandelion;
         // print(F("    pix @"));print((unsigned int)pix);print(F(" #"));print(*pix);
@@ -625,7 +620,7 @@ void performance(byte & patch_i) {
 
   while (Serial.available() <= 0) {
     update_by_dandelion(sliders, patch);
-    RGBPot::read_pots( sliders );
+    RGBPot::read_pots( sliders, PERFORMANCE );
 
     // Don't check knob each time, only every 300 or so
     if ( next_knob_check() ) {
