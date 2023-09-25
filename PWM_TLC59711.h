@@ -6,6 +6,8 @@
 #include "PWM_Pins.h"
 #define USING_PWM_TLC59711
 
+#include <Adafruit_SPIDevice.h>
+
 class PWM_TLC59711 : public PWM_Pins {
     // interface for PWM's on the TLC59711
     // We use the default clock/data pins for SPI.
@@ -27,7 +29,8 @@ class PWM_TLC59711 : public PWM_Pins {
       tlc = new Adafruit_TLC59711(number);
     }
     PWM_TLC59711(int number, int clockpin, int datapin) :number(number) {
-      tlc = new Adafruit_TLC59711(number, clockpin, datapin);
+      //tlc = new Adafruit_TLC59711(number, clockpin, datapin);
+      tlc = new Adafruit_TLC59711(number, new Adafruit_SPIDevice(-1, clockpin, -1, datapin, 1000000/2));
     }
     
     // For each pwm (e.g. pinMode())
