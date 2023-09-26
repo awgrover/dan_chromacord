@@ -11,7 +11,7 @@ using pwmrange_t = byte;
 #else
 // This is "manual lightpainting" 16 bit mode: tlc59711
 #include "PWM_TLC59711.h"
-PWM_TLC59711 PWM(1, 20, 21); // just 1, nb, data on 21 for phone cord;
+PWM_TLC59711 PWM(1); // default spi hardware
 using pwmrange_t = uint16_t;
 #endif
 
@@ -110,7 +110,7 @@ void setup() {
   int p = patch_selector.init();
   print(F("Initial Patch Setting ")); print(p, HEX); println();
 
-  Timer settle_pots(200);
+  Every::Timer settle_pots(200);
   settle_pots.reset();
   while (! settle_pots() ) {
     RGBPot::read_pots( sliders, PERFORMANCE );
